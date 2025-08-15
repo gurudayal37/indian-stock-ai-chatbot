@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indian Stock Market AI Chatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chat-container {
+            height: calc(100vh - 200px);
+        }
+        .message {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .stock-card {
+            transition: all 0.3s ease;
+        }
+        .stock-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-chart-line text-2xl"></i>
+                    <h1 class="text-2xl font-bold">Indian Stock Market AI</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="refreshData" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-all">
+                        <i class="fas fa-sync-alt mr-2"></i>Refresh Data
+                    </button>
+                    <button id="showStocks" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg transition-all">
+                        <i class="fas fa-list mr-2"></i>View Stocks
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Chat Interface -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <i class="fas fa-robot text-2xl text-blue-600"></i>
+                        <h2 class="text-xl font-semibold">AI Stock Market Assistant</h2>
+                    </div>
+                    
+                    <!-- Chat Messages -->
+                    <div id="chatMessages" class="chat-container overflow-y-auto mb-4 p-4 bg-gray-50 rounded-lg">
+                        <div class="message bg-blue-100 p-3 rounded-lg mb-3 max-w-xs">
+                            <p class="text-sm text-gray-800">
+                                <i class="fas fa-robot mr-2 text-blue-600"></i>
+                                Hello! I'm your AI stock market assistant. Ask me anything about Indian stocks, market analysis, or financial insights!
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Input -->
+                    <div class="flex space-x-3">
+                        <input type="text" id="chatInput" 
+                               placeholder="Ask about stocks, market analysis, or financial insights..."
+                               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button id="sendMessage" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <button class="quick-action bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-full text-sm transition-colors">
+                            "Analyze TCS stock"
+                        </button>
+                        <button class="quick-action bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-full text-sm transition-colors">
+                            "Compare HDFC and ICICI"
+                        </button>
+                        <button class="quick-action bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-full text-sm transition-colors">
+                            "IT sector performance"
+                        </button>
+                        <button class="quick-action bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-full text-sm transition-colors">
+                            "Market trends today"
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stock Information Panel -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <i class="fas fa-info-circle text-2xl text-green-600"></i>
+                        <h2 class="text-xl font-semibold">Stock Information</h2>
+                    </div>
+                    
+                    <!-- Search Stock -->
+                    <div class="mb-4">
+                        <input type="text" id="stockSearch" 
+                               placeholder="Search stocks by symbol..."
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    
+                    <!-- Stock Details -->
+                    <div id="stockDetails" class="space-y-4">
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-search text-3xl mb-2"></i>
+                            <p>Search for a stock to see details</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stocks List Modal -->
+        <div id="stocksModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
+                    <div class="p-6 border-b">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xl font-semibold">Stock Market Database</h3>
+                            <button id="closeStocksModal" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="stocksList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Stocks will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span>Processing...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentStock = null;
+        const API_BASE = 'http://localhost:8000/api';
+        
+        // DOM elements
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendMessage = document.getElementById('sendMessage');
+        const stockSearch = document.getElementById('stockSearch');
+        const stockDetails = document.getElementById('stockDetails');
+        const stocksModal = document.getElementById('stocksModal');
+        const stocksList = document.getElementById('stocksList');
+        const closeStocksModal = document.getElementById('closeStocksModal');
+        const showStocks = document.getElementById('showStocks');
+        const refreshData = document.getElementById('refreshData');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const quickActions = document.querySelectorAll('.quick-action');
+        
+        // Event listeners
+        sendMessage.addEventListener('click', sendChatMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+        
+        stockSearch.addEventListener('input', debounce(searchStock, 500));
+        showStocks.addEventListener('click', showStocksModal);
+        closeStocksModal.addEventListener('click', hideStocksModal);
+        refreshData.addEventListener('click', refreshStockData);
+        
+        quickActions.forEach(button => {
+            button.addEventListener('click', () => {
+                chatInput.value = button.textContent.replace(/"/g, '');
+                sendChatMessage();
+            });
+        });
+        
+        // Functions
+        function showLoading() {
+            loadingSpinner.classList.remove('hidden');
+        }
+        
+        function hideLoading() {
+            loadingSpinner.classList.add('hidden');
+        }
+        
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'ml-auto bg-green-100' : 'bg-blue-100'} p-3 rounded-lg mb-3 max-w-xs`;
+            
+            const icon = isUser ? 'fas fa-user' : 'fas fa-robot';
+            const iconColor = isUser ? 'text-green-600' : 'text-blue-600';
+            
+            messageDiv.innerHTML = `
+                <p class="text-sm text-gray-800">
+                    <i class="${icon} mr-2 ${iconColor}"></i>
+                    ${content}
+                </p>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        async function sendChatMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            chatInput.value = '';
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        include_context: true
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addMessage(data.message);
+                    
+                    // If stock context is available, update stock panel
+                    if (data.stock_context) {
+                        displayStockContext(data.stock_context);
+                    }
+                } else {
+                    addMessage(`Error: ${data.detail || 'Failed to get response'}`);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function searchStock() {
+            const query = stockSearch.value.trim();
+            if (!query) {
+                stockDetails.innerHTML = `
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-search text-3xl mb-2"></i>
+                        <p>Search for a stock to see details</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/stocks/${query}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayStockDetails(data);
+                } else {
+                    stockDetails.innerHTML = `
+                        <div class="text-center text-red-500 py-8">
+                            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                            <p>Stock not found</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                stockDetails.innerHTML = `
+                    <div class="text-center text-red-500 py-8">
+                        <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                        <p>Error searching stock</p>
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function displayStockDetails(stock) {
+            currentStock = stock;
+            
+            stockDetails.innerHTML = `
+                <div class="space-y-4">
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold">${stock.name}</h3>
+                        <p class="text-sm text-gray-600">${stock.nse_symbol || stock.bse_symbol}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600">Current Price</p>
+                            <p class="font-semibold">₹${stock.current_price || 'N/A'}</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600">Market Cap</p>
+                            <p class="font-semibold">₹${stock.market_cap ? (stock.market_cap / 100).toFixed(2) + ' Cr' : 'N/A'}</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600">P/E Ratio</p>
+                            <p class="font-semibold">${stock.pe_ratio || 'N/A'}</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600">ROE</p>
+                            <p class="font-semibold">${stock.roe ? stock.roe.toFixed(2) + '%' : 'N/A'}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs text-gray-600 mb-2">Sector & Industry</p>
+                        <p class="text-sm">${stock.sector || 'N/A'} → ${stock.industry || 'N/A'}</p>
+                    </div>
+                    
+                    <button onclick="analyzeStock('${stock.nse_symbol || stock.bse_symbol}')" 
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                        <i class="fas fa-chart-line mr-2"></i>Analyze Stock
+                    </button>
+                </div>
+            `;
+        }
+        
+        function displayStockContext(context) {
+            if (!context.stock_info) return;
+            
+            const stock = context.stock_info;
+            stockDetails.innerHTML = `
+                <div class="space-y-4">
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold">${stock.name}</h3>
+                        <p class="text-sm text-gray-600">${stock.nse_symbol || stock.bse_symbol}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600">Current Price</p>
+                            <p class="font-semibold">₹${stock.current_price || 'N/A'}</p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600">Market Cap</p>
+                            <p class="font-semibold">₹${stock.market_cap ? (stock.market_cap / 100).toFixed(2) + ' Cr' : 'N/A'}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs text-gray-600 mb-2">Sector & Industry</p>
+                        <p class="text-sm">${stock.sector || 'N/A'} → ${stock.industry || 'N/A'}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function analyzeStock(symbol) {
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/analyze-stock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        stock_symbol: symbol,
+                        analysis_type: 'comprehensive'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addMessage(`Analysis for ${symbol}:\n\n${data.summary}`);
+                } else {
+                    addMessage(`Error analyzing stock: ${data.detail || 'Failed to analyze'}`);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function showStocksModal() {
+            stocksModal.classList.remove('hidden');
+            await loadStocks();
+        }
+        
+        function hideStocksModal() {
+            stocksModal.classList.add('hidden');
+        }
+        
+        async function loadStocks() {
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/stocks?limit=50`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayStocksList(data.stocks);
+                } else {
+                    stocksList.innerHTML = '<p class="text-red-500">Error loading stocks</p>';
+                }
+            } catch (error) {
+                stocksList.innerHTML = '<p class="text-red-500">Error loading stocks</p>';
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function displayStocksList(stocks) {
+            stocksList.innerHTML = stocks.map(stock => `
+                <div class="stock-card bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md cursor-pointer"
+                     onclick="selectStock('${stock.nse_symbol || stock.bse_symbol}')">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-semibold">${stock.name}</h4>
+                        <span class="text-sm text-gray-600">${stock.nse_symbol || stock.bse_symbol}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                            <span class="text-gray-600">Price:</span>
+                            <span class="font-medium">₹${stock.current_price || 'N/A'}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">P/E:</span>
+                            <span class="font-medium">${stock.pe_ratio || 'N/A'}</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2">${stock.sector || 'N/A'}</div>
+                </div>
+            `).join('');
+        }
+        
+        function selectStock(symbol) {
+            stockSearch.value = symbol;
+            searchStock();
+            hideStocksModal();
+        }
+        
+        async function refreshStockData() {
+            showLoading();
+            
+            try {
+                const response = await fetch(`${API_BASE}/collect-data`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addMessage(`Data refresh completed! ${data.results.stocks_updated} stocks updated.`);
+                } else {
+                    addMessage(`Error refreshing data: ${data.detail || 'Failed to refresh'}`);
+                }
+            } catch (error) {
+                addMessage(`Error: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Indian Stock Market AI Chatbot initialized!');
+        });
+    </script>
+</body>
+</html>
