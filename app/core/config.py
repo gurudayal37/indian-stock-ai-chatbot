@@ -3,6 +3,13 @@ from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field
 
+# Try to import local configuration first
+try:
+    from .local_config import *
+except ImportError:
+    # Fallback to environment variables if local config not available
+    pass
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""

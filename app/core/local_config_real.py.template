@@ -1,0 +1,61 @@
+"""
+REAL CONFIGURATION TEMPLATE
+
+1. Copy this file to 'local_config_real.py'
+2. Fill in your actual API keys and database credentials
+3. The real file will be ignored by Git for security
+
+Copy command:
+    cp local_config_real.py.template local_config_real.py
+"""
+
+# AI Services - YOUR ACTUAL KEYS HERE
+OPENAI_API_KEY = "sk-your_actual_openai_key_here"
+PERPLEXITY_API_KEY = "pplx-your_actual_perplexity_key_here"
+ALPHA_VANTAGE_API_KEY = "your_actual_alpha_vantage_key_here"
+
+# Database Configuration
+ACTIVE_DATABASE = "local"
+
+# Local Database - YOUR ACTUAL CREDENTIALS HERE
+DATABASE_URL_LOCAL = "postgresql://your_username:your_password@localhost:5432/indian_stocks"
+DATABASE_HOST_LOCAL = "localhost"
+DATABASE_PORT_LOCAL = 5432
+DATABASE_NAME_LOCAL = "indian_stocks"
+DATABASE_USER_LOCAL = "your_actual_username"
+DATABASE_PASSWORD_LOCAL = "your_actual_password"
+
+# Production Database (if using)
+DATABASE_URL_PROD = "postgresql://username:password@host.cloud.com/database?sslmode=require"
+DATABASE_HOST_PROD = "host.cloud.com"
+DATABASE_PORT_PROD = 5432
+DATABASE_NAME_PROD = "database_name"
+DATABASE_USER_PROD = "username"
+DATABASE_PASSWORD_PROD = "password"
+
+# Redis Configuration
+REDIS_URL = "redis://localhost:6379"
+REDIS_HOST = "localhost"
+REDIS_PORT = 6379
+
+# NSE/BSE Configuration
+NSE_BASE_URL = "https://www.nseindia.com"
+BSE_BASE_URL = "https://www.bseindia.com"
+
+# Application Settings
+SECRET_KEY = "your_actual_secret_key_here_change_in_production"
+DEBUG = True
+ENVIRONMENT = "development"
+
+# Data Collection Settings
+DATA_COLLECTION_INTERVAL = 3600
+MAX_RETRIES = 3
+REQUEST_DELAY = 1.0
+
+# LLM Configuration
+LLM_MODEL = "gpt-3.5-turbo"
+LLM_TEMPERATURE = 0.7
+LLM_MAX_TOKENS = 1000
+
+# Logging
+LOG_LEVEL = "INFO"

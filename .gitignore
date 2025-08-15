@@ -3,6 +3,12 @@
 .env.local
 .env.production
 
+# Local configuration with real keys (keep template in Git)
+local_config_real.py
+local_config_prod.py
+local_config_secrets.py
+# Note: local_config_real.py.template is tracked in Git
+
 # Python
 __pycache__/
 *.py[cod]
