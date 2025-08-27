@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey, BigInteger
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey, BigInteger, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -35,6 +35,7 @@ class Stock(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_updated = Column(DateTime, default=datetime.utcnow)  # Last time data was synced from external sources
     
     # Relationships
     daily_prices = relationship("DailyPrice", back_populates="stock", cascade="all, delete-orphan")
@@ -45,6 +46,7 @@ class Stock(Base):
     news = relationship("News", back_populates="stock", cascade="all, delete-orphan")
     credit_ratings = relationship("CreditRating", back_populates="stock", cascade="all, delete-orphan")
     concalls = relationship("Concall", back_populates="stock", cascade="all, delete-orphan")
+    sync_trackers = relationship("SyncTracker", back_populates="stock", cascade="all, delete-orphan")
 
 
 class DailyPrice(Base):
@@ -241,3 +243,24 @@ class Concall(Base):
     
     # Relationship
     stock = relationship("Stock", back_populates="concalls")
+
+
+class SyncTracker(Base):
+    __tablename__ = "sync_tracker"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    stock_id = Column(Integer, ForeignKey("stocks.id"), nullable=False)
+    data_type = Column(String(50), nullable=False)  # 'ohlcv', 'news', 'financials', 'earnings', 'events'
+    last_sync_time = Column(DateTime, default=datetime.utcnow)
+    last_data_date = Column(DateTime)  # Last date of data we have
+    records_count = Column(Integer, default=0)  # Number of records synced
+    sync_status = Column(String(20), default='success')  # 'success', 'failed', 'partial'
+    error_message = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Composite unique constraint
+    __table_args__ = (UniqueConstraint('stock_id', 'data_type', name='uq_stock_data_type'),)
+    
+    # Relationship
+    stock = relationship("Stock", back_populates="sync_trackers")

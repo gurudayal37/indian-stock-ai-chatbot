@@ -3,35 +3,37 @@ from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field
 
-# Try to import local configuration first
+# Import configuration values
 try:
-    from .local_config import *
+    from .local_config_real import *
 except ImportError:
-    # Fallback to environment variables if local config not available
-    pass
+    try:
+        from .local_config import *
+    except ImportError:
+        pass
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
     
     # Database Configuration
-    active_database: str = Field(default="local", env="ACTIVE_DATABASE")
+    active_database: str = Field(default=ACTIVE_DATABASE if 'ACTIVE_DATABASE' in globals() else "local", env="ACTIVE_DATABASE")
     
     # Local Database
-    database_url_local: str = Field(default="postgresql://username:password@localhost:5432/indian_stocks", env="DATABASE_URL_LOCAL")
-    database_host_local: str = Field(default="localhost", env="DATABASE_HOST_LOCAL")
-    database_port_local: int = Field(default=5432, env="DATABASE_PORT_LOCAL")
-    database_name_local: str = Field(default="indian_stocks", env="DATABASE_NAME_LOCAL")
-    database_user_local: str = Field(default="username", env="DATABASE_USER_LOCAL")
-    database_password_local: str = Field(default="password", env="DATABASE_PASSWORD_LOCAL")
+    database_url_local: str = Field(default=DATABASE_URL_LOCAL if 'DATABASE_URL_LOCAL' in globals() else "postgresql://username:password@localhost:5432/indian_stocks", env="DATABASE_URL_LOCAL")
+    database_host_local: str = Field(default=DATABASE_HOST_LOCAL if 'DATABASE_HOST_LOCAL' in globals() else "localhost", env="DATABASE_HOST_LOCAL")
+    database_port_local: int = Field(default=DATABASE_PORT_LOCAL if 'DATABASE_PORT_LOCAL' in globals() else 5432, env="DATABASE_PORT_LOCAL")
+    database_name_local: str = Field(default=DATABASE_NAME_LOCAL if 'DATABASE_NAME_LOCAL' in globals() else "indian_stocks", env="DATABASE_NAME_LOCAL")
+    database_user_local: str = Field(default=DATABASE_USER_LOCAL if 'DATABASE_USER_LOCAL' in globals() else "username", env="DATABASE_USER_LOCAL")
+    database_password_local: str = Field(default=DATABASE_PASSWORD_LOCAL if 'DATABASE_PASSWORD_LOCAL' in globals() else "password", env="DATABASE_PASSWORD_LOCAL")
     
     # Production/Cloud Database
-    database_url_prod: str = Field(default="postgresql://username:password@host.cloud.com/database?sslmode=require", env="DATABASE_URL_PROD")
-    database_host_prod: str = Field(default="host.cloud.com", env="DATABASE_HOST_PROD")
-    database_port_prod: int = Field(default=5432, env="DATABASE_PORT_PROD")
-    database_name_prod: str = Field(default="database_name", env="DATABASE_NAME_PROD")
-    database_user_prod: str = Field(default="username", env="DATABASE_USER_PROD")
-    database_password_prod: str = Field(default="password", env="DATABASE_PASSWORD_PROD")
+    database_url_prod: str = Field(default=DATABASE_URL_PROD if 'DATABASE_URL_PROD' in globals() else "postgresql://username:password@host.cloud.com/database?sslmode=require", env="DATABASE_URL_PROD")
+    database_host_prod: str = Field(default=DATABASE_HOST_PROD if 'DATABASE_HOST_PROD' in globals() else "host.cloud.com", env="DATABASE_HOST_PROD")
+    database_port_prod: int = Field(default=DATABASE_PORT_PROD if 'DATABASE_PORT_PROD' in globals() else 5432, env="DATABASE_PORT_PROD")
+    database_name_prod: str = Field(default=DATABASE_NAME_PROD if 'DATABASE_NAME_PROD' in globals() else "database_name", env="DATABASE_NAME_PROD")
+    database_user_prod: str = Field(default=DATABASE_USER_PROD if 'DATABASE_USER_PROD' in globals() else "username", env="DATABASE_USER_PROD")
+    database_password_prod: str = Field(default=DATABASE_PASSWORD_PROD if 'DATABASE_PASSWORD_PROD' in globals() else "password", env="DATABASE_PASSWORD_PROD")
     
     @property
     def database_url(self) -> str:
