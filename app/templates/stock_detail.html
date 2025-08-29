@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis - {{ symbol }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        .quarterly-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #667eea;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line me-2"></i>
+                Stock Analysis Dashboard
+            </a>
+            <a href="/" class="btn btn-outline-light">
+                <i class="fas fa-arrow-left me-2"></i>Back to Stocks
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div id="loadingSpinner" class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <div id="stockContent" style="display: none;">
+            <!-- Stock Header -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1 id="stockName">Loading...</h1>
+                    <p class="text-muted" id="stockSymbol">{{ symbol }}</p>
+                    <p class="text-muted" id="stockSector">Loading sector...</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="h2 text-primary" id="currentPrice">₹0</div>
+                    <div id="priceChange" class="h5">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <div class="metric-value" id="marketCap">₹0Cr</div>
+                        <div class="metric-label">Market Cap</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <div class="metric-value" id="peRatio">0</div>
+                        <div class="metric-label">P/E Ratio</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <div class="metric-value" id="pbRatio">0</div>
+                        <div class="metric-label">P/B Ratio</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card text-center">
+                        <div class="metric-value" id="roe">0%</div>
+                        <div class="metric-label">ROE</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-pills mb-4" id="stockTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button" role="tab">
+                        <i class="fas fa-info-circle me-2"></i>Overview
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="chart-tab" data-bs-toggle="pill" data-bs-target="#chart" type="button" role="tab">
+                        <i class="fas fa-chart-line me-2"></i>Price Chart
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="quarterly-tab" data-bs-toggle="pill" data-bs-target="#quarterly" type="button" role="tab">
+                        <i class="fas fa-chart-bar me-2"></i>Quarterly Results
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="stockTabContent">
+                <!-- Overview Tab -->
+                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Company Information</h5>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>ISIN:</strong></td>
+                                            <td id="stockIsin">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>BSE Symbol:</strong></td>
+                                            <td id="stockBseSymbol">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>NSE Symbol:</strong></td>
+                                            <td id="stockNseSymbol">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Industry:</strong></td>
+                                            <td id="stockIndustry">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Subsector:</strong></td>
+                                            <td id="stockSubsector">Loading...</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Financial Metrics</h5>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Face Value:</strong></td>
+                                            <td id="stockFaceValue">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Book Value:</strong></td>
+                                            <td id="stockBookValue">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Dividend Yield:</strong></td>
+                                            <td id="stockDividendYield">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>ROCE:</strong></td>
+                                            <td id="stockRoce">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>52W High:</strong></td>
+                                            <td id="stock52WHigh">Loading...</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>52W Low:</strong></td>
+                                            <td id="stock52WLow">Loading...</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart Tab -->
+                <div class="tab-pane fade" id="chart" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Price Chart (1 Year)</h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadChart(365)">1Y</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadChart(180)">6M</button>
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadChart(90)">3M</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="priceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quarterly Results Tab -->
+                <div class="tab-pane fade" id="quarterly" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Quarterly Financial Results</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="quarterlyLoading" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <div id="quarterlyContent" style="display: none;">
+                                <div class="table-responsive">
+                                    <table class="table table-striped quarterly-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Quarter</th>
+                                                <th>Revenue (₹Cr)</th>
+                                                <th>Net Profit (₹Cr)</th>
+                                                <th>EBITDA (₹Cr)</th>
+                                                <th>Operating Profit (₹Cr)</th>
+                                                <th>Operating Margin (%)</th>
+                                                <th>Net Margin (%)</th>
+                                                <th>EPS</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="quarterlyTableBody">
+                                            <!-- Quarterly data will be loaded here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const symbol = '{{ symbol }}';
+        let priceChart = null;
+
+        // Load stock data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStockData();
+        });
+
+        async function loadStockData() {
+            try {
+                const response = await fetch(`/api/stocks/${symbol}`);
+                const stock = await response.json();
+                
+                populateStockInfo(stock);
+                showStockContent();
+                
+                // Load chart when chart tab is clicked
+                document.getElementById('chart-tab').addEventListener('click', function() {
+                    if (!priceChart) {
+                        loadChart(365);
+                    }
+                });
+                
+                // Load quarterly results when quarterly tab is clicked
+                document.getElementById('quarterly-tab').addEventListener('click', function() {
+                    loadQuarterlyResults();
+                });
+                
+            } catch (error) {
+                console.error('Error loading stock data:', error);
+            }
+        }
+
+        function populateStockInfo(stock) {
+            document.getElementById('stockName').textContent = stock.name || 'N/A';
+            document.getElementById('stockSector').textContent = stock.sector || 'N/A';
+            document.getElementById('currentPrice').textContent = `₹${(stock.current_price || 0).toLocaleString()}`;
+            
+            // Market cap in Cr
+            const marketCapCr = (stock.market_cap || 0) / 10000000;
+            document.getElementById('marketCap').textContent = `₹${marketCapCr.toFixed(0)}Cr`;
+            
+            document.getElementById('peRatio').textContent = stock.pe_ratio ? stock.pe_ratio.toFixed(1) : 'N/A';
+            document.getElementById('pbRatio').textContent = stock.pb_ratio ? stock.pb_ratio.toFixed(1) : 'N/A';
+            document.getElementById('roe').textContent = stock.roe ? stock.roe.toFixed(1) + '%' : 'N/A';
+            
+            // Company info
+            document.getElementById('stockIsin').textContent = stock.isin || 'N/A';
+            document.getElementById('stockBseSymbol').textContent = stock.bse_symbol || 'N/A';
+            document.getElementById('stockNseSymbol').textContent = stock.nse_symbol || 'N/A';
+            document.getElementById('stockIndustry').textContent = stock.industry || 'N/A';
+            document.getElementById('stockSubsector').textContent = stock.subsector || 'N/A';
+            
+            // Financial metrics
+            document.getElementById('stockFaceValue').textContent = stock.face_value ? `₹${stock.face_value}` : 'N/A';
+            document.getElementById('stockBookValue').textContent = stock.book_value ? `₹${stock.book_value}` : 'N/A';
+            document.getElementById('stockDividendYield').textContent = stock.dividend_yield ? stock.dividend_yield.toFixed(2) + '%' : 'N/A';
+            document.getElementById('stockRoce').textContent = stock.roce ? stock.roce.toFixed(1) + '%' : 'N/A';
+            document.getElementById('stock52WHigh').textContent = stock.high_52_week ? `₹${stock.high_52_week.toLocaleString()}` : 'N/A';
+            document.getElementById('stock52WLow').textContent = stock.low_52_week ? `₹${stock.low_52_week.toLocaleString()}` : 'N/A';
+        }
+
+        function showStockContent() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('stockContent').style.display = 'block';
+        }
+
+        async function loadChart(days) {
+            try {
+                const response = await fetch(`/api/stocks/${symbol}/ohlcv?days=${days}`);
+                const chartData = await response.json();
+                
+                if (priceChart) {
+                    priceChart.destroy();
+                }
+                
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.data.map(d => d.date),
+                        datasets: [{
+                            label: 'Close Price',
+                            data: chartData.data.map(d => d.close),
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `${chartData.stock_name} - Price Chart`
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₹' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+            }
+        }
+
+        async function loadQuarterlyResults() {
+            try {
+                document.getElementById('quarterlyLoading').style.display = 'block';
+                document.getElementById('quarterlyContent').style.display = 'none';
+                
+                const response = await fetch(`/api/stocks/${symbol}/quarterly-results?quarters=8`);
+                const quarterlyData = await response.json();
+                
+                populateQuarterlyTable(quarterlyData);
+                
+                document.getElementById('quarterlyLoading').style.display = 'none';
+                document.getElementById('quarterlyContent').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading quarterly results:', error);
+                document.getElementById('quarterlyLoading').style.display = 'none';
+            }
+        }
+
+        function populateQuarterlyTable(quarterlyData) {
+            const tbody = document.getElementById('quarterlyTableBody');
+            tbody.innerHTML = '';
+            
+            quarterlyData.forEach(quarter => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${quarter.quarter}</strong></td>
+                    <td>${quarter.revenue ? (quarter.revenue / 10000000).toFixed(0) : 'N/A'}</td>
+                    <td>${quarter.net_profit ? (quarter.net_profit / 10000000).toFixed(0) : 'N/A'}</td>
+                    <td>${quarter.ebitda ? (quarter.ebitda / 10000000).toFixed(0) : 'N/A'}</td>
+                    <td>${quarter.operating_profit ? (quarter.operating_profit / 10000000).toFixed(0) : 'N/A'}</td>
+                    <td>${quarter.operating_margin ? quarter.operating_margin.toFixed(1) : 'N/A'}</td>
+                    <td>${quarter.net_margin ? quarter.net_margin.toFixed(1) : 'N/A'}</td>
+                    <td>${quarter.eps ? quarter.eps.toFixed(2) : 'N/A'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>

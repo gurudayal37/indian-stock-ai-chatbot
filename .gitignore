@@ -99,6 +99,23 @@ poetry.lock
 # pdm
 .pdm.toml
 
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
 # PEP 582
 __pypackages__/
 
