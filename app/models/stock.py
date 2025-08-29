@@ -32,6 +32,7 @@ class Stock(Base):
     subsector1 = Column(String(100))  # Added for detailed sector hierarchy
     subsector2 = Column(String(100))  # Added for detailed sector hierarchy
     subsector3 = Column(String(100))  # Added for detailed sector hierarchy
+    long_business_summary = Column(Text)  # Long business description from Yahoo Finance
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -84,22 +85,39 @@ class QuarterlyResult(Base):
     year = Column(Integer, nullable=False)
     quarter_number = Column(Integer, nullable=False)  # 1, 2, 3, 4
     
-    # Financial metrics
+    # Financial metrics (existing)
     revenue = Column(Float)
     net_profit = Column(Float)
     ebitda = Column(Float)
     operating_profit = Column(Float)
     
-    # Ratios
+    # BSE-specific financial metrics (new)
+    other_income = Column(Float)  # Other Income
+    total_income = Column(Float)  # Total Income
+    expenditure = Column(Float)   # Total Expenditure
+    interest = Column(Float)      # Interest Expense
+    pbdt = Column(Float)          # Profit Before Depreciation and Tax
+    depreciation = Column(Float)  # Depreciation & Amortization
+    pbt = Column(Float)           # Profit Before Tax
+    tax = Column(Float)           # Tax Expense
+    equity = Column(Float)        # Equity Share Capital
+    ceps = Column(Float)          # Cash Earnings Per Share
+    
+    # Ratios (existing + new)
     operating_margin = Column(Float)
     net_margin = Column(Float)
     eps = Column(Float)  # Earnings Per Share
+    opm_percent = Column(Float)  # Operating Profit Margin %
+    npm_percent = Column(Float)  # Net Profit Margin %
     
     # Type (consolidated or standalone)
     is_consolidated = Column(Boolean, default=False)
     
-    # Metadata
+    # Metadata (existing + new)
     announcement_date = Column(DateTime)
+    filing_date = Column(DateTime)  # Filing date
+    quarterly_result_link = Column(Text)  # Link to BSE quarterly results
+    source = Column(String(20), default='BSE')  # Data source: BSE, Yahoo Finance, etc.
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationship

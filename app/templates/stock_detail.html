@@ -23,9 +23,93 @@
             font-size: 0.9rem;
             opacity: 0.9;
         }
+        .quarterly-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #dee2e6;
+            font-size: 14px;
+            table-layout: fixed;
+        }
         .quarterly-table th {
             background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 12px 8px;
             font-weight: 600;
+            color: #495057;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .quarterly-table .metric-header {
+            width: 200px;
+            text-align: left;
+            padding-left: 20px;
+        }
+        .quarterly-table .quarter-header {
+            width: 120px;
+            text-align: center;
+        }
+        .quarterly-table td {
+            border: 1px solid #dee2e6;
+            padding: 10px 8px;
+            vertical-align: middle;
+            text-align: right;
+        }
+        .quarterly-table .metric-label {
+            width: 200px;
+            text-align: left;
+            padding-left: 20px;
+            font-weight: 500;
+        }
+        .quarterly-table .quarter-data {
+            width: 120px;
+            text-align: right;
+        }
+        .quarterly-table tbody tr:hover {
+            background-color: #f8f9fa !important;
+        }
+        .quarterly-table .table-striped > tbody > tr:nth-of-type(odd) > td {
+            background-color: #ffffff;
+        }
+        .quarterly-table .table-striped > tbody > tr:nth-of-type(even) > td {
+            background-color: #f8f9fa;
+        }
+        .quarterly-table .fw-bold {
+            font-weight: 700 !important;
+        }
+        .quarterly-table .text-muted {
+            color: #6c757d !important;
+        }
+        
+        /* Single page layout styles */
+        .content-sections {
+            padding: 20px 0;
+        }
+        
+        .content-section {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section-header {
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 15px;
+        }
+        
+        .section-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .content-section .card {
+            border: none;
+            box-shadow: none;
+        }
+        
+        .content-section .card-header {
+            background: transparent;
+            border-bottom: 1px solid #e9ecef;
         }
         .nav-pills .nav-link.active {
             background-color: #667eea;
@@ -99,29 +183,15 @@
                 </div>
             </div>
 
-            <!-- Navigation Tabs -->
-            <ul class="nav nav-pills mb-4" id="stockTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button" role="tab">
-                        <i class="fas fa-info-circle me-2"></i>Overview
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="chart-tab" data-bs-toggle="pill" data-bs-target="#chart" type="button" role="tab">
-                        <i class="fas fa-chart-line me-2"></i>Price Chart
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="quarterly-tab" data-bs-toggle="pill" data-bs-target="#quarterly" type="button" role="tab">
-                        <i class="fas fa-chart-bar me-2"></i>Quarterly Results
-                    </button>
-                </li>
-            </ul>
-
-            <!-- Tab Content -->
-            <div class="tab-content" id="stockTabContent">
-                <!-- Overview Tab -->
-                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <!-- Single Page Content -->
+            <div class="content-sections">
+                <!-- Overview Section -->
+                <div class="content-section mb-5" id="overview">
+                    <div class="section-header mb-4">
+                        <h3 class="text-primary">
+                            <i class="fas fa-info-circle me-2"></i>Company Overview
+                        </h3>
+                    </div>
                     <div class="row">
                         <div class="col-md-6">
                             <div class="card">
@@ -192,8 +262,13 @@
                     </div>
                 </div>
 
-                <!-- Chart Tab -->
-                <div class="tab-pane fade" id="chart" role="tabpanel">
+                <!-- Price Chart Section -->
+                <div class="content-section mb-5" id="chart">
+                    <div class="section-header mb-4">
+                        <h3 class="text-primary">
+                            <i class="fas fa-chart-line me-2"></i>Price Chart
+                        </h3>
+                    </div>
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Price Chart (1 Year)</h5>
@@ -211,41 +286,56 @@
                     </div>
                 </div>
 
-                <!-- Quarterly Results Tab -->
-                <div class="tab-pane fade" id="quarterly" role="tabpanel">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Quarterly Financial Results</h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="quarterlyLoading" class="text-center">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-                            </div>
-                            <div id="quarterlyContent" style="display: none;">
-                                <div class="table-responsive">
-                                    <table class="table table-striped quarterly-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Quarter</th>
-                                                <th>Revenue (₹Cr)</th>
-                                                <th>Net Profit (₹Cr)</th>
-                                                <th>EBITDA (₹Cr)</th>
-                                                <th>Operating Profit (₹Cr)</th>
-                                                <th>Operating Margin (%)</th>
-                                                <th>Net Margin (%)</th>
-                                                <th>EPS</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="quarterlyTableBody">
-                                            <!-- Quarterly data will be loaded here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+                <!-- Quarterly Results Section -->
+                <div class="content-section mb-5" id="quarterly">
+                    <div class="section-header mb-4">
+                        <h3 class="text-primary">
+                            <i class="fas fa-chart-bar me-2"></i>Quarterly Results
+                        </h3>
                     </div>
+                     <div class="card">
+                         <div class="card-header bg-light">
+                             <div class="d-flex justify-content-between align-items-center">
+                                 <h5 class="mb-0">
+                                     <i class="fas fa-chart-bar me-2 text-primary"></i>Quarterly Results
+                                 </h5>
+                                 <div>
+                                     <button class="btn btn-sm btn-outline-primary me-2" onclick="toggleConsolidated()">
+                                         <i class="fas fa-exchange-alt me-1"></i>Toggle Consolidated
+                                     </button>
+                                     <button class="btn btn-sm btn-primary">
+                                         <i class="fas fa-chart-pie me-1"></i>PRODUCT SEGMENTS
+                                     </button>
+                                 </div>
+                             </div>
+                             <p class="mb-0 mt-2 text-muted">
+                                 <span id="quarterlySubtitle">Standalone Figures in Rs. Crores</span>
+                                 <span class="text-primary ms-2" style="cursor: pointer;" onclick="toggleConsolidated()">/ View Consolidated</span>
+                             </p>
+                         </div>
+                         <div class="card-body p-0">
+                             <div id="quarterlyLoading" class="text-center p-4">
+                                 <div class="spinner-border text-primary" role="status">
+                                     <span class="visually-hidden">Loading...</span>
+                                 </div>
+                             </div>
+                             <div id="quarterlyContent" style="display: none;">
+                                 <div class="table-responsive">
+                                     <table class="quarterly-table">
+                                         <thead>
+                                             <tr id="quarterlyHeaderRow">
+                                                 <th class="metric-header">Financial Metrics</th>
+                                                 <!-- Quarter headers will be populated here by JavaScript -->
+                                             </tr>
+                                         </thead>
+                                         <tbody id="quarterlyTableBody">
+                                             <!-- Quarterly data will be populated here -->
+                                         </tbody>
+                                     </table>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
                 </div>
             </div>
         </div>
@@ -269,17 +359,11 @@
                 populateStockInfo(stock);
                 showStockContent();
                 
-                // Load chart when chart tab is clicked
-                document.getElementById('chart-tab').addEventListener('click', function() {
-                    if (!priceChart) {
-                        loadChart(365);
-                    }
-                });
+                // Load chart automatically
+                loadChart(365);
                 
-                // Load quarterly results when quarterly tab is clicked
-                document.getElementById('quarterly-tab').addEventListener('click', function() {
-                    loadQuarterlyResults();
-                });
+                // Load quarterly results automatically
+                loadQuarterlyResults();
                 
             } catch (error) {
                 console.error('Error loading stock data:', error);
@@ -391,23 +475,124 @@
         }
 
         function populateQuarterlyTable(quarterlyData) {
+            console.log('Quarterly Data:', quarterlyData);
+            
+            // Clear existing content
+            const headerRow = document.getElementById('quarterlyHeaderRow');
             const tbody = document.getElementById('quarterlyTableBody');
+            
+            // Remove all quarter headers except the first "Financial Metrics" header
+            while (headerRow.children.length > 1) {
+                headerRow.removeChild(headerRow.lastChild);
+            }
+            
+            // Sort quarters by year and quarter number (oldest to newest)
+            const sortedQuarters = [...quarterlyData].sort((a, b) => {
+                if (a.year !== b.year) {
+                    return a.year - b.year;
+                }
+                return a.quarter_number - b.quarter_number;
+            });
+            
+            console.log('Sorted Quarters:', sortedQuarters);
+            
+            // Create individual header cells for each quarter (oldest to newest, left to right)
+            sortedQuarters.forEach(quarter => {
+                const th = document.createElement('th');
+                th.className = 'quarter-header';
+                th.textContent = quarter.quarter;
+                headerRow.appendChild(th);
+            });
+            
+            console.log('Header Row Children:', headerRow.children.length);
+            
+            // Clear table body
             tbody.innerHTML = '';
             
-            quarterlyData.forEach(quarter => {
+            // Define the financial metrics we want to show
+            const metrics = [
+                { key: 'revenue', label: 'Sales +', format: 'cr', expandable: true },
+                { key: 'operating_profit', label: 'Operating Profit', format: 'cr', highlight: true },
+                { key: 'operating_margin', label: 'OPM %', format: 'percent' },
+                { key: 'ebitda', label: 'EBITDA', format: 'cr' },
+                { key: 'net_profit', label: 'Net Profit +', format: 'cr', expandable: true, highlight: true },
+                { key: 'eps', label: 'EPS in Rs', format: 'currency' }
+            ];
+            
+            // Create rows for each metric
+            metrics.forEach(metric => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td><strong>${quarter.quarter}</strong></td>
-                    <td>${quarter.revenue ? (quarter.revenue / 10000000).toFixed(0) : 'N/A'}</td>
-                    <td>${quarter.net_profit ? (quarter.net_profit / 10000000).toFixed(0) : 'N/A'}</td>
-                    <td>${quarter.ebitda ? (quarter.ebitda / 10000000).toFixed(0) : 'N/A'}</td>
-                    <td>${quarter.operating_profit ? (quarter.operating_profit / 10000000).toFixed(0) : 'N/A'}</td>
-                    <td>${quarter.operating_margin ? quarter.operating_margin.toFixed(1) : 'N/A'}</td>
-                    <td>${quarter.net_margin ? quarter.net_margin.toFixed(1) : 'N/A'}</td>
-                    <td>${quarter.eps ? quarter.eps.toFixed(2) : 'N/A'}</td>
-                `;
+                
+                // Create label cell (first column)
+                const labelCell = document.createElement('td');
+                labelCell.className = 'metric-label';
+                
+                // Add expandable indicator if needed
+                if (metric.expandable) {
+                    labelCell.innerHTML = `<i class="fas fa-plus me-2 text-muted"></i>${metric.label}`;
+                } else {
+                    labelCell.innerHTML = metric.label;
+                }
+                
+                // Add highlighting for key metrics
+                if (metric.highlight) {
+                    labelCell.className += ' fw-bold';
+                }
+                
+                row.appendChild(labelCell);
+                
+                // Create data cells for each quarter (in the same order as headers)
+                sortedQuarters.forEach(quarter => {
+                    const dataCell = document.createElement('td');
+                    dataCell.className = 'quarter-data';
+                    
+                    const value = quarter[metric.key];
+                    if (value !== null && value !== undefined) {
+                        switch (metric.format) {
+                            case 'cr':
+                                dataCell.textContent = (value / 10000000).toFixed(0);
+                                break;
+                            case 'percent':
+                                dataCell.textContent = value.toFixed(1) + '%';
+                                break;
+                            case 'currency':
+                                dataCell.textContent = value.toFixed(2);
+                                break;
+                            default:
+                                dataCell.textContent = value;
+                        }
+                    } else {
+                        dataCell.textContent = 'N/A';
+                    }
+                    
+                    // Highlight key metrics
+                    if (metric.highlight) {
+                        dataCell.className += ' fw-bold';
+                    }
+                    
+                    row.appendChild(dataCell);
+                });
+                
                 tbody.appendChild(row);
             });
+            
+            console.log('Final Table Structure - Headers:', headerRow.children.length, 'Data Rows:', tbody.children.length);
+        }
+        
+        function toggleConsolidated() {
+            // Toggle between standalone and consolidated view
+            const subtitle = document.getElementById('quarterlySubtitle');
+            const currentText = subtitle.textContent;
+            
+            if (currentText.includes('Standalone')) {
+                subtitle.textContent = 'Consolidated Figures in Rs. Crores';
+                // Here you would reload quarterly data with consolidated figures
+                loadQuarterlyResults(true); // true for consolidated
+            } else {
+                subtitle.textContent = 'Standalone Figures in Rs. Crores';
+                // Here you would reload quarterly data with standalone figures
+                loadQuarterlyResults(false); // false for standalone
+            }
         }
     </script>
 </body>
