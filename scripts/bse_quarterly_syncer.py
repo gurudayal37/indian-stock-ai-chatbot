@@ -665,12 +665,14 @@ class BSEQuarterlySyncer:
                                                 if existing_quarter:
                                                     # Update existing record with new metric
                                                     existing_quarter.update(quarter_record)
+                                                    logger.debug(f"✅ Updated existing {quarter_record['quarter']} record")
                                                 else:
-                                                    # Create new quarterly record
+                                                    # Add new record
                                                     quarterly_results.append(quarter_record)
-                                                    
+                                                    logger.debug(f"✅ Added new {quarter_record['quarter']} record")
+                                    
                                     except Exception as e:
-                                        logger.debug(f"Error processing quarter {quarter}: {e}")
+                                        logger.warning(f"Error processing quarter {quarter} for {metric_name}: {e}")
                                         continue
                                         
             except Exception as e:
@@ -793,6 +795,8 @@ class BSEQuarterlySyncer:
         except Exception as e:
             logger.debug(f"Error creating quarterly record: {e}")
             return None
+    
+
     
     def _parse_numeric_value(self, value_text: str) -> Optional[float]:
         """Parse numeric value from text, handling BSE's format"""
