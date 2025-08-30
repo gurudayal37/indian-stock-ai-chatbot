@@ -29,6 +29,11 @@ async def stock_detail(request: Request, symbol: str):
     """Individual stock detail page"""
     return templates.TemplateResponse("stock_detail.html", {"request": request, "symbol": symbol})
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def featured_dashboard(request: Request):
+    """Featured stocks dashboard page"""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

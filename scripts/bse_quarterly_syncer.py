@@ -630,7 +630,7 @@ class BSEQuarterlySyncer:
                             continue
                         
                         # Check if this is a financial metric we care about
-                        if any(keyword in metric_name for keyword in ['revenue', 'other income', 'total income', 'expenditure', 'interest', 'pbdt', 'depreciation', 'pbt', 'tax', 'net profit', 'equity', 'eps', 'ceps', 'opm %', 'npm %']):
+                        if any(keyword in metric_name for keyword in ['revenue', 'sales', 'other income', 'total income', 'expenditure', 'expenses', 'interest', 'pbdt', 'depreciation', 'pbt', 'profit before tax', 'tax', 'net profit', 'equity', 'eps', 'ceps', 'opm %', 'npm %']):
                             logger.debug(f"📊 Processing metric: {metric_name}")
                             
                             # Extract values for each quarter
@@ -739,13 +739,16 @@ class BSEQuarterlySyncer:
             # Map metric names to database fields
             metric_mapping = {
                 'revenue': 'revenue',
+                'sales': 'revenue',  # BSE sometimes uses 'Sales' instead of 'Revenue'
                 'other income': 'other_income',
                 'total income': 'total_income',
                 'expenditure': 'expenditure',
+                'expenses': 'expenditure',  # BSE sometimes uses 'Expenses'
                 'interest': 'interest',
                 'pbdt': 'pbdt',
                 'depreciation': 'depreciation',
                 'pbt': 'pbt',
+                'profit before tax': 'pbt',  # Alternative name
                 'tax': 'tax',
                 'net profit': 'net_profit',
                 'equity': 'equity',
@@ -760,35 +763,26 @@ class BSEQuarterlySyncer:
             if db_field:
                 quarter_record[db_field] = value
                 logger.debug(f"✅ Set {db_field} = {value} for Q{quarter_num} {year}")
-                
-                # Calculate derived metrics
-                if db_field == 'revenue' and value:
-                    quarter_record['revenue'] = value
-                elif db_field == 'net_profit' and value:
-                    quarter_record['net_profit'] = value
-                    # Calculate net_margin if we have both revenue and net_profit
-                    if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
-                        quarter_record['net_margin'] = (value / quarter_record['revenue']) * 100
-                elif db_field == 'opm_percent' and value:
-                    quarter_record['opm_percent'] = value
-                    # Calculate operating_margin if we have revenue and opm_percent
-                    if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
-                        quarter_record['operating_margin'] = (value / 100) * quarter_record['revenue']
-                elif db_field == 'npm_percent' and value:
-                    quarter_record['npm_percent'] = value
-                    # Calculate net_margin if we have revenue and npm_percent
-                    if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
-                        quarter_record['net_margin'] = (value / 100) * quarter_record['revenue']
             
             # Calculate additional derived metrics if we have the base data
             if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
-                # Calculate operating_margin from opm_percent if available
+                # Calculate operating_profit from opm_percent if available
                 if 'opm_percent' in quarter_record and quarter_record['opm_percent']:
-                    quarter_record['operating_margin'] = (quarter_record['opm_percent'] / 100) * quarter_record['revenue']
+                    quarter_record['operating_profit'] = (quarter_record['opm_percent'] / 100) * quarter_record['revenue']
+                    quarter_record['operating_margin'] = quarter_record['opm_percent']
                 
                 # Calculate net_margin from net_profit if available
                 if 'net_profit' in quarter_record and quarter_record['net_profit']:
                     quarter_record['net_margin'] = (quarter_record['net_profit'] / quarter_record['revenue']) * 100
+                
+                # Calculate EBITDA if we have the components
+                # EBITDA = PBDT + Depreciation (since PBDT is before depreciation)
+                if 'pbdt' in quarter_record and quarter_record['pbdt'] and 'depreciation' in quarter_record and quarter_record['depreciation']:
+                    quarter_record['ebitda'] = quarter_record['pbdt'] + abs(quarter_record['depreciation'])
+            
+            # Calculate Tax % if we have tax amount and PBT
+            if 'tax' in quarter_record and quarter_record['tax'] and 'pbt' in quarter_record and quarter_record['pbt'] and quarter_record['pbt'] > 0:
+                quarter_record['tax_percent'] = (abs(quarter_record['tax']) / quarter_record['pbt']) * 100
             
             return quarter_record
             
@@ -887,7 +881,7 @@ class BSEQuarterlySyncer:
                 logger.warning(f"⚠️ No quarterly results found in BSE table for {stock.nse_symbol}")
                 return []
     
-    def _parse_quarterly_row(self, cells: List, stock: Stock) -> Optional[Dict[str, Any]]:
+    def _parse_quarterly_row(self, cells, stock: Stock) -> Optional[Dict[str, Any]]:
         """Parse a row of quarterly results data"""
         try:
             # Extract quarter and year from first cell
@@ -895,9 +889,14 @@ class BSEQuarterlySyncer:
             
             # Try multiple quarter formats used by BSE
             quarter_match = None
+            quarter_num = None
+            year = None
             
             # Format 1: "Q1 2025", "Q2 2024"
             quarter_match = re.search(r'Q(\d)\s*(\d{4})', quarter_text, re.IGNORECASE)
+            if quarter_match:
+                quarter_num = int(quarter_match.group(1))
+                year = int(quarter_match.group(2))
             
             # Format 2: "Jun-25", "Mar-25", "Dec-24", "Sep-24"
             if not quarter_match:
@@ -919,77 +918,88 @@ class BSEQuarterlySyncer:
             quarter_str = f"Q{quarter_num} {year}"
             
             # Parse financial data from remaining cells
-            # This is a simplified parser - BSE table structure may vary
+            # Instead of position-based mapping, let's try to identify columns by their headers
             financial_data = {}
             
-            # Map common BSE column names to our database fields
-            column_mapping = {
-                'revenue': ['revenue', 'total revenue', 'sales'],
-                'other_income': ['other income', 'other income (net)'],
-                'total_income': ['total income', 'total revenue'],
-                'expenditure': ['expenditure', 'total expenses'],
-                'interest': ['interest', 'finance cost'],
-                'pbdt': ['pbdt', 'profit before depreciation and tax'],
-                'depreciation': ['depreciation', 'depreciation & amortization'],
-                'pbt': ['pbt', 'profit before tax'],
-                'tax': ['tax', 'tax expense'],
-                'net_profit': ['net profit', 'net income', 'pat'],
-                'equity': ['equity', 'equity share capital'],
-                'eps': ['eps', 'earnings per share'],
-                'ceps': ['ceps', 'cash earnings per share'],
-                'opm_percent': ['opm %', 'operating margin %'],
-                'npm_percent': ['npm %', 'net margin %']
-            }
+            # First, let's log what we're seeing for debugging
+            logger.debug(f"Parsing row for {quarter_str}: {len(cells)} cells")
+            for i, cell in enumerate(cells):
+                cell_text = cell.get_text(strip=True)
+                logger.debug(f"Cell {i}: '{cell_text}'")
             
-            # Try to extract values based on column headers
-            for i, cell in enumerate(cells[1:], 1):
+            # Try to extract values based on column headers or position
+            # BSE tables typically have: Quarter | Revenue | Other Income | Total Income | Expenditure | Interest | PBDT | Depreciation | PBT | Tax | Net Profit | Equity | EPS | CEPS | OPM% | NPM%
+            
+            for i, cell in enumerate(cells[1:], 1):  # Skip first cell (quarter)
                 cell_text = cell.get_text(strip=True)
                 
                 # Try to convert to numeric value
                 try:
                     # Remove commas and convert to float
                     numeric_value = float(cell_text.replace(',', ''))
+                    logger.debug(f"Cell {i} parsed as: {numeric_value}")
                     
-                    # Assign to appropriate field based on position or try to match with headers
-                    if i == 1:  # First column after quarter is usually revenue
+                    # Based on typical BSE table structure, map columns
+                    if i == 1:  # First column after quarter is usually Revenue
                         financial_data['revenue'] = numeric_value
-                    elif i == 2:  # Second might be other income
+                        logger.debug(f"Set revenue = {numeric_value}")
+                    elif i == 2:  # Second might be Other Income
                         financial_data['other_income'] = numeric_value
-                    elif i == 3:  # Third might be total income
+                        logger.debug(f"Set other_income = {numeric_value}")
+                    elif i == 3:  # Third might be Total Income
                         financial_data['total_income'] = numeric_value
-                    elif i == 4:  # Fourth might be expenditure
+                        logger.debug(f"Set total_income = {numeric_value}")
+                    elif i == 4:  # Fourth might be Expenditure
                         financial_data['expenditure'] = numeric_value
-                    elif i == 5:  # Fifth might be interest
+                        logger.debug(f"Set expenditure = {numeric_value}")
+                    elif i == 5:  # Fifth might be Interest
                         financial_data['interest'] = numeric_value
+                        logger.debug(f"Set interest = {numeric_value}")
                     elif i == 6:  # Sixth might be PBDT
                         financial_data['pbdt'] = numeric_value
-                    elif i == 7:  # Seventh might be depreciation
+                        logger.debug(f"Set pbdt = {numeric_value}")
+                    elif i == 7:  # Seventh might be Depreciation
                         financial_data['depreciation'] = numeric_value
+                        logger.debug(f"Set depreciation = {numeric_value}")
                     elif i == 8:  # Eighth might be PBT
                         financial_data['pbt'] = numeric_value
-                    elif i == 9:  # Ninth might be tax
+                        logger.debug(f"Set pbt = {numeric_value}")
+                    elif i == 9:  # Ninth might be Tax
                         financial_data['tax'] = numeric_value
-                    elif i == 10:  # Tenth might be net profit
+                        logger.debug(f"Set tax = {numeric_value}")
+                    elif i == 10:  # Tenth might be Net Profit
                         financial_data['net_profit'] = numeric_value
-                    elif i == 11:  # Eleventh might be equity
+                        logger.debug(f"Set net_profit = {numeric_value}")
+                    elif i == 11:  # Eleventh might be Equity
                         financial_data['equity'] = numeric_value
+                        logger.debug(f"Set equity = {numeric_value}")
                     elif i == 12:  # Twelfth might be EPS
                         financial_data['eps'] = numeric_value
+                        logger.debug(f"Set eps = {numeric_value}")
                     elif i == 13:  # Thirteenth might be CEPS
                         financial_data['ceps'] = numeric_value
+                        logger.debug(f"Set ceps = {numeric_value}")
                     elif i == 14:  # Fourteenth might be OPM %
                         financial_data['opm_percent'] = numeric_value
+                        logger.debug(f"Set opm_percent = {numeric_value}")
                     elif i == 15:  # Fifteenth might be NPM %
                         financial_data['npm_percent'] = numeric_value
+                        logger.debug(f"Set npm_percent = {numeric_value}")
                     
                 except ValueError:
                     # Not a numeric value, skip
+                    logger.debug(f"Cell {i} not numeric: '{cell_text}'")
                     continue
             
-            # Calculate margins if not provided
+            # Calculate derived fields
             revenue_val = financial_data.get('revenue')
             net_profit_val = financial_data.get('net_profit')
-            operating_profit_val = financial_data.get('operating_profit')
+            
+            # Calculate operating profit if we have revenue and expenditure
+            operating_profit_val = None
+            if revenue_val and 'expenditure' in financial_data and financial_data['expenditure']:
+                operating_profit_val = revenue_val - financial_data['expenditure']
+                logger.debug(f"Calculated operating_profit = {revenue_val} - {financial_data['expenditure']} = {operating_profit_val}")
             
             opm_percent = financial_data.get('opm_percent')
             npm_percent = financial_data.get('npm_percent')
@@ -997,9 +1007,17 @@ class BSEQuarterlySyncer:
             # Calculate margins if not provided
             if not opm_percent and revenue_val and revenue_val > 0 and operating_profit_val:
                 opm_percent = (operating_profit_val / revenue_val) * 100
+                logger.debug(f"Calculated OPM% = ({operating_profit_val} / {revenue_val}) * 100 = {opm_percent}%")
             
             if not npm_percent and revenue_val and revenue_val > 0 and net_profit_val:
                 npm_percent = (net_profit_val / revenue_val) * 100
+                logger.debug(f"Calculated NPM% = ({net_profit_val} / {revenue_val}) * 100 = {npm_percent}%")
+            
+            # Calculate EBITDA if we have the components
+            ebitda_val = None
+            if 'pbdt' in financial_data and financial_data['pbdt'] and 'depreciation' in financial_data and financial_data['depreciation']:
+                ebitda_val = financial_data['pbdt'] + abs(financial_data['depreciation'])
+                logger.debug(f"Calculated EBITDA = {financial_data['pbdt']} + {abs(financial_data['depreciation'])} = {ebitda_val}")
             
             # Create quarterly result record
             quarter_record = {
@@ -1008,6 +1026,8 @@ class BSEQuarterlySyncer:
                 'year': year,
                 'quarter_number': quarter_num,
                 'revenue': revenue_val,
+                'operating_profit': operating_profit_val,
+                'ebitda': ebitda_val,
                 'other_income': financial_data.get('other_income'),
                 'total_income': financial_data.get('total_income'),
                 'expenditure': financial_data.get('expenditure'),
@@ -1029,6 +1049,7 @@ class BSEQuarterlySyncer:
                 'is_consolidated': True
             }
             
+            logger.info(f"Created quarter record for {quarter_str}: revenue={revenue_val}, net_profit={net_profit_val}")
             return quarter_record
             
         except Exception as e:

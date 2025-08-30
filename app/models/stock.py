@@ -109,6 +109,7 @@ class QuarterlyResult(Base):
     eps = Column(Float)  # Earnings Per Share
     opm_percent = Column(Float)  # Operating Profit Margin %
     npm_percent = Column(Float)  # Net Profit Margin %
+    tax_percent = Column(Float)  # Tax as percentage of PBT
     
     # Type (consolidated or standalone)
     is_consolidated = Column(Boolean, default=False)

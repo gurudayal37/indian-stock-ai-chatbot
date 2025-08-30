@@ -309,7 +309,7 @@
                                  </div>
                              </div>
                              <p class="mb-0 mt-2 text-muted">
-                                 <span id="quarterlySubtitle">Standalone Figures in Rs. Crores</span>
+                                 <span id="quarterlySubtitle">Standalone Figures in Crores</span>
                                  <span class="text-primary ms-2" style="cursor: pointer;" onclick="toggleConsolidated()">/ View Consolidated</span>
                              </p>
                          </div>
@@ -460,8 +460,12 @@
                 document.getElementById('quarterlyLoading').style.display = 'block';
                 document.getElementById('quarterlyContent').style.display = 'none';
                 
-                const response = await fetch(`/api/stocks/${symbol}/quarterly-results?quarters=8`);
+                // Add timestamp to prevent caching
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/stocks/${symbol}/quarterly-results?quarters=8&t=${timestamp}`);
                 const quarterlyData = await response.json();
+                
+                console.log('Raw quarterly data received:', quarterlyData);
                 
                 populateQuarterlyTable(quarterlyData);
                 
@@ -476,6 +480,17 @@
 
         function populateQuarterlyTable(quarterlyData) {
             console.log('Quarterly Data:', quarterlyData);
+            console.log('First quarter sample:', quarterlyData[0]);
+            console.log('Number of quarters:', quarterlyData.length);
+            
+            // Debug: Check if data has the expected structure
+            if (quarterlyData.length > 0) {
+                const firstQuarter = quarterlyData[0];
+                console.log('Revenue field:', firstQuarter.revenue, 'Type:', typeof firstQuarter.revenue);
+                console.log('Operating Profit field:', firstQuarter.operating_profit, 'Type:', typeof firstQuarter.operating_profit);
+                console.log('EBITDA field:', firstQuarter.ebitda, 'Type:', typeof firstQuarter.ebitda);
+                console.log('Net Profit field:', firstQuarter.net_profit, 'Type:', typeof firstQuarter.net_profit);
+            }
             
             // Clear existing content
             const headerRow = document.getElementById('quarterlyHeaderRow');
@@ -509,14 +524,21 @@
             // Clear table body
             tbody.innerHTML = '';
             
-            // Define the financial metrics we want to show
+            // Define the comprehensive financial metrics we want to show
             const metrics = [
-                { key: 'revenue', label: 'Sales +', format: 'cr', expandable: true },
-                { key: 'operating_profit', label: 'Operating Profit', format: 'cr', highlight: true },
-                { key: 'operating_margin', label: 'OPM %', format: 'percent' },
+                { key: 'revenue', label: 'Sales', format: 'cr', expandable: true },
+                { key: 'expenditure', label: 'Expenditure', format: 'cr' },
+                { key: 'operating_profit', label: 'Operating Profit', format: 'cr', highlight: true, color: 'primary' },
+                { key: 'opm_percent', label: 'OPM %', format: 'percent' },
+                { key: 'other_income', label: 'Other Income', format: 'cr' },
+                { key: 'interest', label: 'Interest', format: 'cr' },
+                { key: 'depreciation', label: 'Depreciation', format: 'cr' },
+                { key: 'pbt', label: 'Profit before tax', format: 'cr', highlight: true, color: 'success' },
+                { key: 'tax_percent', label: 'Tax %', format: 'percent' },
+                { key: 'net_profit', label: 'Net Profit', format: 'cr', expandable: true, highlight: true, color: 'info' },
                 { key: 'ebitda', label: 'EBITDA', format: 'cr' },
-                { key: 'net_profit', label: 'Net Profit +', format: 'cr', expandable: true, highlight: true },
-                { key: 'eps', label: 'EPS in Rs', format: 'currency' }
+                { key: 'eps', label: 'EPS in Rs', format: 'currency' },
+                { key: 'ceps', label: 'CEPS in Rs', format: 'currency' }
             ];
             
             // Create rows for each metric
@@ -546,28 +568,50 @@
                     const dataCell = document.createElement('td');
                     dataCell.className = 'quarter-data';
                     
-                    const value = quarter[metric.key];
-                    if (value !== null && value !== undefined) {
-                        switch (metric.format) {
-                            case 'cr':
-                                dataCell.textContent = (value / 10000000).toFixed(0);
-                                break;
-                            case 'percent':
-                                dataCell.textContent = value.toFixed(1) + '%';
-                                break;
-                            case 'currency':
-                                dataCell.textContent = value.toFixed(2);
-                                break;
-                            default:
-                                dataCell.textContent = value;
-                        }
-                    } else {
-                        dataCell.textContent = 'N/A';
+                    let value = quarter[metric.key];
+                    
+                    // Debug logging for first quarter
+                    if (quarter === sortedQuarters[0]) {
+                        console.log(`${metric.key}: ${value} (raw: ${quarter[metric.key]})`);
                     }
                     
-                    // Highlight key metrics
+                    // Additional debugging for all quarters
+                    console.log(`Processing ${metric.key} for ${quarter.quarter}: value=${value}, raw=${quarter[metric.key]}`);
+                    
+                    if (value !== null && value !== undefined) {
+                        let displayValue;
+                        switch (metric.format) {
+                            case 'cr':
+                                // Values are already in crores, format as crores with 2 decimal places
+                                displayValue = value.toFixed(2);
+                                break;
+                            case 'percent':
+                                displayValue = value.toFixed(1) + '%';
+                                break;
+                            case 'currency':
+                                displayValue = value.toFixed(2);
+                                break;
+                            default:
+                                displayValue = value;
+                        }
+                        
+                        dataCell.textContent = displayValue;
+                        console.log(`Setting ${metric.key} for ${quarter.quarter}: ${displayValue} (from value: ${value})`);
+                    } else {
+                        dataCell.textContent = 'N/A';
+                        console.log(`Setting ${metric.key} for ${quarter.quarter}: N/A (value is null/undefined)`);
+                    }
+                    
+                    // Highlight key metrics with colors
                     if (metric.highlight) {
                         dataCell.className += ' fw-bold';
+                        if (metric.color === 'primary') {
+                            dataCell.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                        } else if (metric.color === 'success') {
+                            dataCell.style.backgroundColor = 'rgba(25, 135, 84, 0.1)';
+                        } else if (metric.color === 'info') {
+                            dataCell.style.backgroundColor = 'rgba(13, 202, 240, 0.1)';
+                        }
                     }
                     
                     row.appendChild(dataCell);
@@ -585,11 +629,11 @@
             const currentText = subtitle.textContent;
             
             if (currentText.includes('Standalone')) {
-                subtitle.textContent = 'Consolidated Figures in Rs. Crores';
+                subtitle.textContent = 'Consolidated Figures in Crores';
                 // Here you would reload quarterly data with consolidated figures
                 loadQuarterlyResults(true); // true for consolidated
             } else {
-                subtitle.textContent = 'Standalone Figures in Rs. Crores';
+                subtitle.textContent = 'Standalone Figures in Crores';
                 // Here you would reload quarterly data with standalone figures
                 loadQuarterlyResults(false); // false for standalone
             }
