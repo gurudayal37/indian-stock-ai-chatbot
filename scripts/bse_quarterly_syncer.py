@@ -758,6 +758,35 @@ class BSEQuarterlySyncer:
             if db_field:
                 quarter_record[db_field] = value
                 logger.debug(f"✅ Set {db_field} = {value} for Q{quarter_num} {year}")
+                
+                # Calculate derived metrics
+                if db_field == 'revenue' and value:
+                    quarter_record['revenue'] = value
+                elif db_field == 'net_profit' and value:
+                    quarter_record['net_profit'] = value
+                    # Calculate net_margin if we have both revenue and net_profit
+                    if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
+                        quarter_record['net_margin'] = (value / quarter_record['revenue']) * 100
+                elif db_field == 'opm_percent' and value:
+                    quarter_record['opm_percent'] = value
+                    # Calculate operating_margin if we have revenue and opm_percent
+                    if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
+                        quarter_record['operating_margin'] = (value / 100) * quarter_record['revenue']
+                elif db_field == 'npm_percent' and value:
+                    quarter_record['npm_percent'] = value
+                    # Calculate net_margin if we have revenue and npm_percent
+                    if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
+                        quarter_record['net_margin'] = (value / 100) * quarter_record['revenue']
+            
+            # Calculate additional derived metrics if we have the base data
+            if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
+                # Calculate operating_margin from opm_percent if available
+                if 'opm_percent' in quarter_record and quarter_record['opm_percent']:
+                    quarter_record['operating_margin'] = (quarter_record['opm_percent'] / 100) * quarter_record['revenue']
+                
+                # Calculate net_margin from net_profit if available
+                if 'net_profit' in quarter_record and quarter_record['net_profit']:
+                    quarter_record['net_margin'] = (quarter_record['net_profit'] / quarter_record['revenue']) * 100
             
             return quarter_record
             
