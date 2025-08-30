@@ -2,6 +2,76 @@
 """
 BSE Quarterly Results Syncer
 Scrapes quarterly results from BSE website with Yahoo Finance fallback
+
+TRANSFORMATION LOGIC - BSE Raw to Screener/Analyst Values:
+
+IMPORTANT: BSE displays financial values in crores (e.g., "52,788.00" = 52,788 crores)
+All values are stored and processed in crores scale. No scaling is applied during parsing.
+
+Based on the mapping table provided, this syncer implements the following transformations:
+
+1. Sales/Revenue: Same (no change needed)
+   - BSE Raw: "Sales" 
+   - Screener Analyst: "Sales"
+   - Adjustment: No change
+
+2. Operating Expenses (excl. Interest): BSE Expenditure - Interest
+   - BSE Raw: "Expenditure (includes Interest)"
+   - Screener Analyst: "Operating Expenses (excl. Interest)"
+   - Adjustment: BSE Expenditure - Interest
+
+3. Operating Profit (EBITDA): BSE PBDT + Depreciation
+   - BSE Raw: "Operating Profit (shown lower)"
+   - Screener Analyst: "EBITDA (correct)"
+   - Adjustment: BSE PBDT + Depreciation
+   - Note: BSE shows PBDT (Profit Before Depreciation and Tax)
+
+4. OPM %: Recalculate using corrected EBITDA
+   - BSE Raw: "(Operating Profit ÷ Sales) but understated"
+   - Screener Analyst: "EBITDA ÷ Sales"
+   - Adjustment: Recalculate using corrected EBITDA
+
+5. Other Income: Same (no change needed)
+   - BSE Raw: "Other Income"
+   - Screener Analyst: "Other Income"
+   - Adjustment: No change
+
+6. Interest: Separate line item
+   - BSE Raw: "Already included inside Expenditure"
+   - Screener Analyst: "Separate line item"
+   - Adjustment: Take directly from BSE "Interest" row
+
+7. Depreciation: Same (no change needed)
+   - BSE Raw: "Depreciation"
+   - Screener Analyst: "Depreciation"
+   - Adjustment: No change
+
+8. Profit Before Tax (PBT): Matches (no change needed)
+   - BSE Raw: "Matches"
+   - Screener Analyst: "Matches"
+   - Adjustment: No change
+
+9. Tax %: Calculate if we have tax amount and PBT
+   - BSE Raw: "Matches"
+   - Screener Analyst: "Matches"
+   - Adjustment: Calculate as (Tax / PBT) * 100
+
+10. Net Profit: Same (no change needed)
+    - BSE Raw: "Matches"
+    - Screener Analyst: "Matches"
+    - Adjustment: No change
+
+11. EPS: Same (no change needed)
+    - BSE Raw: "Matches"
+    - Screener Analyst: "Matches"
+    - Adjustment: No change
+
+Additional Derived Metrics:
+- Net Margin %: (Net Profit / Revenue) * 100
+- Total Income: Revenue + Other Income
+
+This ensures that all financial metrics stored in the database are in the Screener/Analyst format,
+making them directly comparable with other financial data sources and analysis tools.
 """
 
 import sys
@@ -173,7 +243,11 @@ class BSEQuarterlySyncer:
         self.safe_db_operation(_update_tracker)
     
     def scrape_bse_quarterly_results(self, stock: Stock) -> List[Dict[str, Any]]:
-        """Scrape quarterly results from BSE website using Selenium for JavaScript content"""
+        """Scrape quarterly results from BSE website using Selenium for JavaScript content
+        
+        BSE displays financial values in crores (e.g., "52,788.00" = 52,788 crores)
+        All scraped values are stored in crores scale, no scaling applied.
+        """
         try:
             # Construct BSE URL
             # Format: https://www.bseindia.com/stock-share-price/company-name/nse-symbol/bse-code/financials-results/
@@ -608,12 +682,56 @@ class BSEQuarterlySyncer:
                     # Extract quarter information from header row
                     header_cells = header_row.find_all(['td', 'th'])
                     quarters = []
-                    for cell in header_cells:
-                        cell_text = cell.get_text(strip=True).strip()
-                        if any(month in cell_text.lower() for month in ['jun-', 'mar-', 'dec-', 'sep-']):
-                            quarters.append(cell_text)
                     
-                    logger.info(f"📅 Found quarters: {quarters}")
+                    # IMPORTANT: BSE shows data in both "in Cr." and "in Million" columns
+                    # We need to identify which columns are the "in Cr." columns and only parse those
+                    # Look for the "(in cr.)" header to identify crores columns
+                    crores_start_idx = None
+                    crores_end_idx = None
+                    
+                    for i, cell in enumerate(header_cells):
+                        cell_text = cell.get_text(strip=True).strip()
+                        if '(in cr.)' in cell_text.lower() and crores_start_idx is None:
+                            # Only take the FIRST occurrence of "(in cr.)" - this is the real crores data
+                            crores_start_idx = i
+                            logger.info(f"🔍 Found 'in Cr.' columns starting at index {i}")
+                        elif '(in million)' in cell_text.lower():
+                            # This marks the end of crores columns and start of million columns
+                            crores_end_idx = i
+                            logger.info(f"🔍 Found 'in Million' columns starting at index {i}")
+                            break
+                    
+                    # If we found crores columns, only parse those
+                    if crores_start_idx is not None:
+                        if crores_end_idx is None:
+                            # If no million columns found, take all columns after crores start
+                            crores_end_idx = len(header_cells)
+                        
+                        # Extract only the crores quarter columns
+                        crores_columns = header_cells[crores_start_idx:crores_end_idx]
+                        for cell in crores_columns:
+                            cell_text = cell.get_text(strip=True).strip()
+                            if any(month in cell_text.lower() for month in ['jun-', 'mar-', 'dec-', 'sep-']):
+                                quarters.append(cell_text)
+                        
+                        logger.info(f"📅 Found {len(quarters)} crores quarters: {quarters}")
+                        
+                        # CRITICAL: Validate that we're not accidentally picking up million columns
+                        if any('million' in cell.get_text(strip=True).lower() for cell in crores_columns):
+                            logger.error(f"🚨 CRITICAL ERROR: Found 'million' in supposed crores columns! This will cause 10x scaling!")
+                            logger.error(f"🚨 Crores columns range: {crores_start_idx} to {crores_end_idx}")
+                            logger.error(f"🚨 Header cells: {[cell.get_text(strip=True) for cell in header_cells]}")
+                            # Reset to prevent wrong parsing
+                            crores_start_idx = None
+                            crores_end_idx = None
+                            quarters = []
+                    else:
+                        # Fallback: parse all columns that look like quarters
+                        for cell in header_cells:
+                            cell_text = cell.get_text(strip=True).strip()
+                            if any(month in cell_text.lower() for month in ['jun-', 'mar-', 'dec-', 'sep-']):
+                                quarters.append(cell_text)
+                        logger.info(f"📅 Found {len(quarters)} quarters (fallback): {quarters}")
                     
                     # Parse data rows
                     for row in rows:
@@ -633,11 +751,23 @@ class BSEQuarterlySyncer:
                         if any(keyword in metric_name for keyword in ['revenue', 'sales', 'other income', 'total income', 'expenditure', 'expenses', 'interest', 'pbdt', 'depreciation', 'pbt', 'profit before tax', 'tax', 'net profit', 'equity', 'eps', 'ceps', 'opm %', 'npm %']):
                             logger.debug(f"📊 Processing metric: {metric_name}")
                             
-                            # Extract values for each quarter
+                            # Extract values for each quarter (only from crores columns)
                             for quarter_idx, quarter in enumerate(quarters):
-                                if quarter_idx + 1 < len(cells):  # Ensure we have enough cells
-                                    value_cell = cells[quarter_idx + 1]
+                                if crores_start_idx is not None:
+                                    # Use the crores column index
+                                    value_cell_idx = crores_start_idx + quarter_idx
+                                    logger.debug(f"🔍 Crores column indexing: crores_start_idx={crores_start_idx}, quarter_idx={quarter_idx}, value_cell_idx={value_cell_idx}")
+                                else:
+                                    # Fallback: use sequential indexing
+                                    value_cell_idx = quarter_idx + 1
+                                    logger.debug(f"🔍 Fallback indexing: quarter_idx={quarter_idx}, value_cell_idx={value_cell_idx}")
+                                
+                                if value_cell_idx < len(cells):  # Ensure we have enough cells
+                                    value_cell = cells[value_cell_idx]
                                     value_text = value_cell.get_text(strip=True).strip()
+                                    
+                                    # Add debug logging for the actual value being parsed
+                                    logger.debug(f"🔍 Parsing value: quarter={quarter}, metric={metric_name}, cell_idx={value_cell_idx}, raw_text='{value_text}'")
                                     
                                     # Skip if no value or if it's a link
                                     if not value_text or value_text in ['--', 'standalone', 'consolidated', 'segment']:
@@ -680,7 +810,12 @@ class BSEQuarterlySyncer:
                 continue
         
         if quarterly_results:
-            logger.info(f"✅ Successfully parsed {len(quarterly_results)} quarterly results from BSE")
+            # Apply Screener transformations after all metrics are collected
+            logger.info(f"🔄 Applying Screener transformations to {len(quarterly_results)} quarterly results...")
+            for quarter_record in quarterly_results:
+                self._apply_screener_transformations(quarter_record)
+            
+            logger.info(f"✅ Successfully parsed and transformed {len(quarterly_results)} quarterly results from BSE")
             return quarterly_results
         else:
             logger.warning(f"⚠️ No quarterly results found in BSE table for {stock.nse_symbol}")
@@ -715,12 +850,140 @@ class BSEQuarterlySyncer:
             logger.debug(f"Error parsing quarter text '{quarter_text}': {e}")
             return None
     
+    def _apply_screener_transformations(self, quarter_record: Dict[str, Any]):
+        """Apply Screener transformations to a quarterly record after all metrics are collected
+        
+        All financial values in quarter_record are expected to be in crores.
+        This method applies Screener transformation rules to convert BSE raw values
+        to Screener/Analyst equivalent values, maintaining the crores scale.
+        
+        TRANSFORMATION RULES:
+        1. Expenses = BSE_Expenses – BSE_Interest
+        2. OperatingProfit = Revenue - (Expenditure - Interest)  # Since BSE doesn't show Operating Profit directly
+        3. OPM% = (Screener_OperatingProfit / BSE_Sales) * 100
+        """
+        try:
+            logger.info(f"🔄 Applying Screener transformations for {quarter_record.get('quarter', 'unknown')}")
+            
+            # Rule 1: Expenses = BSE_Expenses – BSE_Interest
+            if (quarter_record.get('expenditure') is not None and 
+                quarter_record.get('interest') is not None):
+                
+                # Store original BSE expenditure before transformation
+                bse_expenditure = quarter_record['expenditure']
+                
+                # Apply Screener transformation: Expenses = BSE_Expenses – BSE_Interest
+                screener_expenses = bse_expenditure - abs(quarter_record['interest'])
+                quarter_record['expenditure'] = screener_expenses
+                
+                logger.info(f"✅ Rule 1 - Expenses: BSE_Expenses({bse_expenditure}) – BSE_Interest({abs(quarter_record['interest'])}) = {screener_expenses}")
+            else:
+                logger.warning(f"⚠️ Missing fields for Expenses calculation: expenditure={quarter_record.get('expenditure')}, interest={quarter_record.get('interest')}")
+            
+            # Rule 2: OperatingProfit calculation
+            # Since BSE doesn't show Operating Profit directly, we calculate it as:
+            # Operating Profit = Revenue - (Expenditure - Interest)
+            if (quarter_record.get('revenue') is not None and 
+                quarter_record.get('expenditure') is not None and 
+                quarter_record.get('interest') is not None):
+                
+                # Calculate Operating Profit using Screener formula
+                screener_operating_profit = quarter_record['revenue'] - (quarter_record['expenditure'] - abs(quarter_record['interest']))
+                quarter_record['operating_profit'] = screener_operating_profit
+                quarter_record['ebitda'] = screener_operating_profit  # EBITDA = Operating Profit
+                
+                logger.info(f"✅ Rule 2 - Operating Profit: Revenue({quarter_record['revenue']}) - (Expenditure({quarter_record['expenditure']}) - Interest({abs(quarter_record['interest'])})) = {screener_operating_profit}")
+            else:
+                logger.warning(f"⚠️ Missing fields for Operating Profit calculation: revenue={quarter_record.get('revenue')}, expenditure={quarter_record.get('expenditure')}, interest={quarter_record.get('interest')}")
+            
+            # Rule 3: OPM% = (Screener_OperatingProfit / BSE_Sales) * 100
+            if (quarter_record.get('operating_profit') is not None and 
+                quarter_record.get('revenue') is not None and 
+                quarter_record['revenue'] > 0):
+                
+                opm_percent = (quarter_record['operating_profit'] / quarter_record['revenue']) * 100
+                quarter_record['opm_percent'] = opm_percent
+                
+                logger.info(f"✅ Rule 3 - OPM%: (Screener_OperatingProfit({quarter_record['operating_profit']}) / BSE_Sales({quarter_record['revenue']})) * 100 = {opm_percent:.2f}%")
+            else:
+                logger.warning(f"⚠️ Missing fields for OPM% calculation: operating_profit={quarter_record.get('operating_profit')}, revenue={quarter_record.get('revenue')}")
+            
+            # Additional derived calculations
+            # Tax %
+            if (quarter_record.get('pbt') is not None and 
+                quarter_record['pbt'] > 0 and 
+                quarter_record.get('tax') is not None):
+                
+                tax_percent = (abs(quarter_record['tax']) / quarter_record['pbt']) * 100
+                quarter_record['tax_percent'] = tax_percent
+                logger.info(f"✅ Tax %: (|Tax({abs(quarter_record['tax'])}| / PBT({quarter_record['pbt']})) * 100 = {tax_percent:.2f}%")
+            
+            # Net Margin %
+            if (quarter_record.get('net_profit') is not None and 
+                quarter_record.get('revenue') is not None and 
+                quarter_record['revenue'] > 0):
+                
+                net_margin = (quarter_record['net_profit'] / quarter_record['revenue']) * 100
+                quarter_record['net_margin'] = net_margin
+                logger.info(f"✅ Net Margin %: (Net Profit({quarter_record['net_profit']}) / Revenue({quarter_record['revenue']})) * 100 = {net_margin:.2f}%")
+            
+            # Total Income
+            if (quarter_record.get('revenue') is not None and 
+                quarter_record.get('other_income') is not None):
+                
+                total_income = quarter_record['revenue'] + quarter_record['other_income']
+                quarter_record['total_income'] = total_income
+                logger.info(f"✅ Total Income: Revenue({quarter_record['revenue']}) + Other Income({quarter_record['other_income']}) = {total_income}")
+            
+            logger.info(f"✅ Successfully applied all Screener transformations for {quarter_record.get('quarter', 'unknown')}")
+                
+        except Exception as e:
+            logger.error(f"❌ Error applying Screener transformations to {quarter_record.get('quarter', 'unknown')}: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    def _show_transformation_summary(self, raw_values: Dict[str, float], analyst_values: Dict[str, float], quarter: str):
+        """Show a summary of transformations from BSE raw to Screener/Analyst values"""
+        logger.info(f"🔄 Transformation Summary for {quarter}:")
+        logger.info("=" * 60)
+        
+        # Show key transformations
+        if 'expenditure' in raw_values and 'interest' in raw_values:
+            raw_exp = raw_values['expenditure']
+            interest = raw_values['interest']
+            analyst_exp = analyst_values.get('operating_expenses', 'N/A')
+            logger.info(f"📊 Operating Expenses: {raw_exp} (BSE Raw) - {interest} (Interest) = {analyst_exp} (Analyst)")
+        
+        if 'pbdt' in raw_values and 'depreciation' in raw_values:
+            pbdt = raw_values['pbdt']
+            dep = raw_values['depreciation']
+            ebitda = analyst_values.get('ebitda', 'N/A')
+            logger.info(f"📊 EBITDA: {pbdt} (BSE PBDT) + {abs(dep)} (Depreciation) = {ebitda} (Analyst)")
+        
+        if 'revenue' in raw_values and 'operating_profit' in analyst_values:
+            revenue = raw_values['revenue']
+            operating_profit = analyst_values['operating_profit']
+            opm = analyst_values.get('opm_percent', 'N/A')
+            logger.info(f"📊 Screener OPM %: ({operating_profit} / {revenue}) * 100 = {opm}% (Analyst)")
+        
+        if 'net_profit' in raw_values and 'revenue' in raw_values:
+            net_profit = raw_values['net_profit']
+            revenue = raw_values['revenue']
+            npm = analyst_values.get('net_margin', 'N/A')
+            logger.info(f"📊 Net Margin %: ({net_profit} / {revenue}) * 100 = {npm}% (Analyst)")
+        
+        logger.info("=" * 60)
+    
     def _create_quarterly_record_from_bse(self, stock: Stock, year: int, quarter_num: int, metric_name: str, value_text: str) -> Optional[Dict[str, Any]]:
-        """Create a quarterly record from BSE data"""
+        """Create a quarterly record from BSE data with proper transformations to Screener/Analyst values
+        
+        BSE provides financial values in crores (e.g., "52,788.00" = 52,788 crores)
+        We store these values as-is in crores, then apply Screener transformations.
+        """
         try:
             # Convert value text to numeric
-            value = self._parse_numeric_value(value_text)
-            if value is None:
+            raw_value = self._parse_numeric_value(value_text)
+            if raw_value is None:
                 return None
             
             # Create base quarterly record
@@ -736,7 +999,10 @@ class BSEQuarterlySyncer:
                 'is_consolidated': False
             }
             
-            # Map metric names to database fields
+            # Store raw BSE values for reference and calculations
+            raw_values = {}
+            
+            # Map metric names to database fields and store raw values
             metric_mapping = {
                 'revenue': 'revenue',
                 'sales': 'revenue',  # BSE sometimes uses 'Sales' instead of 'Revenue'
@@ -758,31 +1024,16 @@ class BSEQuarterlySyncer:
                 'npm %': 'npm_percent'
             }
             
-            # Set the metric value
+            # Set the raw metric value and store for calculations
             db_field = metric_mapping.get(metric_name)
             if db_field:
-                quarter_record[db_field] = value
-                logger.debug(f"✅ Set {db_field} = {value} for Q{quarter_num} {year}")
+                # Store raw BSE value in both raw_values and quarter_record
+                raw_values[db_field] = raw_value
+                quarter_record[db_field] = raw_value
+                logger.debug(f"✅ Set {db_field} = {raw_value} (raw BSE value) for Q{quarter_num} {year}")
             
-            # Calculate additional derived metrics if we have the base data
-            if 'revenue' in quarter_record and quarter_record['revenue'] and quarter_record['revenue'] > 0:
-                # Calculate operating_profit from opm_percent if available
-                if 'opm_percent' in quarter_record and quarter_record['opm_percent']:
-                    quarter_record['operating_profit'] = (quarter_record['opm_percent'] / 100) * quarter_record['revenue']
-                    quarter_record['operating_margin'] = quarter_record['opm_percent']
-                
-                # Calculate net_margin from net_profit if available
-                if 'net_profit' in quarter_record and quarter_record['net_profit']:
-                    quarter_record['net_margin'] = (quarter_record['net_profit'] / quarter_record['revenue']) * 100
-                
-                # Calculate EBITDA if we have the components
-                # EBITDA = PBDT + Depreciation (since PBDT is before depreciation)
-                if 'pbdt' in quarter_record and quarter_record['pbdt'] and 'depreciation' in quarter_record and quarter_record['depreciation']:
-                    quarter_record['ebitda'] = quarter_record['pbdt'] + abs(quarter_record['depreciation'])
-            
-            # Calculate Tax % if we have tax amount and PBT
-            if 'tax' in quarter_record and quarter_record['tax'] and 'pbt' in quarter_record and quarter_record['pbt'] and quarter_record['pbt'] > 0:
-                quarter_record['tax_percent'] = (abs(quarter_record['tax']) / quarter_record['pbt']) * 100
+            # Note: All Screener transformations are now handled in _apply_screener_transformations
+            # after all metrics for a quarter are collected
             
             return quarter_record
             
@@ -793,7 +1044,11 @@ class BSEQuarterlySyncer:
 
     
     def _parse_numeric_value(self, value_text: str) -> Optional[float]:
-        """Parse numeric value from text, handling BSE's format"""
+        """Parse numeric value from text, handling BSE's format
+        
+        BSE displays financial values in crores (e.g., "52,788.00" = 52,788 crores)
+        This method parses the text and returns the value in crores, no scaling applied.
+        """
         try:
             # Remove common non-numeric characters
             cleaned_text = value_text.replace(',', '').replace('(', '').replace(')', '').strip()
@@ -805,6 +1060,28 @@ class BSEQuarterlySyncer:
             numeric_match = re.search(r'([\d,]+\.?\d*)', cleaned_text)
             if numeric_match:
                 numeric_value = float(numeric_match.group(1).replace(',', ''))
+                
+                # BSE shows values in crores (e.g., "52,788.00" means 52,788 crores)
+                # We store these values as-is in crores, no scaling needed
+                # The values should match exactly what BSE displays
+                
+                logger.debug(f"🔍 Parsed '{value_text}' -> cleaned: '{cleaned_text}' -> extracted: '{numeric_match.group(1)}' -> final: {numeric_value}")
+                
+                # Add additional validation to catch potential scaling issues
+                if numeric_value > 1000000:  # If value is over 10 lakh crores, it's suspicious
+                    logger.warning(f"⚠️ SUSPICIOUS VALUE: '{value_text}' parsed as {numeric_value} - this seems too large for crores!")
+                
+                # CRITICAL: Additional check for million values (10x larger than expected)
+                # BSE typically shows revenue in crores, so values like 210,589.8 are suspicious
+                # This suggests we might be parsing million columns instead of crores
+                if numeric_value > 100000:  # If value is over 1 lakh crores, double-check
+                    logger.warning(f"🚨 POTENTIAL MILLION VALUE: '{value_text}' parsed as {numeric_value} - this might be in millions, not crores!")
+                    # For debugging, let's check if this looks like a million value
+                    if numeric_value > 10000:
+                        logger.error(f"🚨 HIGH PROBABILITY: This value {numeric_value} appears to be in millions (10x larger than expected crores)")
+                        # Reject this value - it's clearly in millions
+                        return None
+                
                 return -numeric_value if is_negative else numeric_value
             
             return None
@@ -882,7 +1159,7 @@ class BSEQuarterlySyncer:
                 return []
     
     def _parse_quarterly_row(self, cells, stock: Stock) -> Optional[Dict[str, Any]]:
-        """Parse a row of quarterly results data"""
+        """Parse a row of quarterly results data with proper transformations to Screener/Analyst values"""
         try:
             # Extract quarter and year from first cell
             quarter_text = cells[0].get_text(strip=True)
@@ -919,7 +1196,7 @@ class BSEQuarterlySyncer:
             
             # Parse financial data from remaining cells
             # Instead of position-based mapping, let's try to identify columns by their headers
-            financial_data = {}
+            raw_values = {}
             
             # First, let's log what we're seeing for debugging
             logger.debug(f"Parsing row for {quarter_str}: {len(cells)} cells")
@@ -929,119 +1206,82 @@ class BSEQuarterlySyncer:
             
             # Try to extract values based on column headers or position
             # BSE tables typically have: Quarter | Revenue | Other Income | Total Income | Expenditure | Interest | PBDT | Depreciation | PBT | Tax | Net Profit | Equity | EPS | CEPS | OPM% | NPM%
+            # IMPORTANT: BSE shows data in both "in Cr." and "in Million" columns. We only want the "in Cr." columns.
+            
+            # Find the number of "in Cr." columns by looking at the table structure
+            # BSE typically has: Quarter | (in Cr.) columns | (in Million) columns
+            # We only want the "in Cr." columns, not the "in Million" columns
             
             for i, cell in enumerate(cells[1:], 1):  # Skip first cell (quarter)
                 cell_text = cell.get_text(strip=True)
                 
                 # Try to convert to numeric value
                 try:
-                    # Remove commas and convert to float
-                    numeric_value = float(cell_text.replace(',', ''))
+                    # Use our proper parsing method to handle BSE format correctly
+                    numeric_value = self._parse_numeric_value(cell_text)
+                    if numeric_value is None:
+                        logger.debug(f"Cell {i} not numeric: '{cell_text}'")
+                        continue
                     logger.debug(f"Cell {i} parsed as: {numeric_value}")
                     
-                    # Based on typical BSE table structure, map columns
+                    # Based on typical BSE table structure, map columns to raw values
                     if i == 1:  # First column after quarter is usually Revenue
-                        financial_data['revenue'] = numeric_value
-                        logger.debug(f"Set revenue = {numeric_value}")
+                        raw_values['revenue'] = numeric_value
+                        logger.debug(f"Set raw revenue = {numeric_value}")
                     elif i == 2:  # Second might be Other Income
-                        financial_data['other_income'] = numeric_value
-                        logger.debug(f"Set other_income = {numeric_value}")
+                        raw_values['other_income'] = numeric_value
+                        logger.debug(f"Set raw other_income = {numeric_value}")
                     elif i == 3:  # Third might be Total Income
-                        financial_data['total_income'] = numeric_value
-                        logger.debug(f"Set total_income = {numeric_value}")
+                        raw_values['total_income'] = numeric_value
+                        logger.debug(f"Set raw total_income = {numeric_value}")
                     elif i == 4:  # Fourth might be Expenditure
-                        financial_data['expenditure'] = numeric_value
-                        logger.debug(f"Set expenditure = {numeric_value}")
+                        raw_values['expenditure'] = numeric_value
+                        logger.debug(f"Set raw expenditure = {numeric_value}")
                     elif i == 5:  # Fifth might be Interest
-                        financial_data['interest'] = numeric_value
-                        logger.debug(f"Set interest = {numeric_value}")
+                        raw_values['interest'] = numeric_value
+                        logger.debug(f"Set raw interest = {numeric_value}")
                     elif i == 6:  # Sixth might be PBDT
-                        financial_data['pbdt'] = numeric_value
-                        logger.debug(f"Set pbdt = {numeric_value}")
+                        raw_values['pbdt'] = numeric_value
+                        logger.debug(f"Set raw pbdt = {numeric_value}")
                     elif i == 7:  # Seventh might be Depreciation
-                        financial_data['depreciation'] = numeric_value
-                        logger.debug(f"Set depreciation = {numeric_value}")
+                        raw_values['depreciation'] = numeric_value
+                        logger.debug(f"Set raw depreciation = {numeric_value}")
                     elif i == 8:  # Eighth might be PBT
-                        financial_data['pbt'] = numeric_value
-                        logger.debug(f"Set pbt = {numeric_value}")
+                        raw_values['pbt'] = numeric_value
+                        logger.debug(f"Set raw pbt = {numeric_value}")
                     elif i == 9:  # Ninth might be Tax
-                        financial_data['tax'] = numeric_value
-                        logger.debug(f"Set tax = {numeric_value}")
+                        raw_values['tax'] = numeric_value
+                        logger.debug(f"Set raw tax = {numeric_value}")
                     elif i == 10:  # Tenth might be Net Profit
-                        financial_data['net_profit'] = numeric_value
-                        logger.debug(f"Set net_profit = {numeric_value}")
+                        raw_values['net_profit'] = numeric_value
+                        logger.debug(f"Set raw net_profit = {numeric_value}")
                     elif i == 11:  # Eleventh might be Equity
-                        financial_data['equity'] = numeric_value
-                        logger.debug(f"Set equity = {numeric_value}")
+                        raw_values['equity'] = numeric_value
+                        logger.debug(f"Set raw equity = {numeric_value}")
                     elif i == 12:  # Twelfth might be EPS
-                        financial_data['eps'] = numeric_value
-                        logger.debug(f"Set eps = {numeric_value}")
+                        raw_values['eps'] = numeric_value
+                        logger.debug(f"Set raw eps = {numeric_value}")
                     elif i == 13:  # Thirteenth might be CEPS
-                        financial_data['ceps'] = numeric_value
-                        logger.debug(f"Set ceps = {numeric_value}")
+                        raw_values['ceps'] = numeric_value
+                        logger.debug(f"Set raw ceps = {numeric_value}")
                     elif i == 14:  # Fourteenth might be OPM %
-                        financial_data['opm_percent'] = numeric_value
-                        logger.debug(f"Set opm_percent = {numeric_value}")
+                        raw_values['opm_percent'] = numeric_value
+                        logger.debug(f"Set raw opm_percent = {numeric_value}")
                     elif i == 15:  # Fifteenth might be NPM %
-                        financial_data['npm_percent'] = numeric_value
-                        logger.debug(f"Set npm_percent = {numeric_value}")
+                        raw_values['npm_percent'] = numeric_value
+                        logger.debug(f"Set raw npm_percent = {numeric_value}")
                     
                 except ValueError:
                     # Not a numeric value, skip
                     logger.debug(f"Cell {i} not numeric: '{cell_text}'")
                     continue
             
-            # Calculate derived fields
-            revenue_val = financial_data.get('revenue')
-            net_profit_val = financial_data.get('net_profit')
-            
-            # Calculate operating profit if we have revenue and expenditure
-            operating_profit_val = None
-            if revenue_val and 'expenditure' in financial_data and financial_data['expenditure']:
-                operating_profit_val = revenue_val - financial_data['expenditure']
-                logger.debug(f"Calculated operating_profit = {revenue_val} - {financial_data['expenditure']} = {operating_profit_val}")
-            
-            opm_percent = financial_data.get('opm_percent')
-            npm_percent = financial_data.get('npm_percent')
-            
-            # Calculate margins if not provided
-            if not opm_percent and revenue_val and revenue_val > 0 and operating_profit_val:
-                opm_percent = (operating_profit_val / revenue_val) * 100
-                logger.debug(f"Calculated OPM% = ({operating_profit_val} / {revenue_val}) * 100 = {opm_percent}%")
-            
-            if not npm_percent and revenue_val and revenue_val > 0 and net_profit_val:
-                npm_percent = (net_profit_val / revenue_val) * 100
-                logger.debug(f"Calculated NPM% = ({net_profit_val} / {revenue_val}) * 100 = {npm_percent}%")
-            
-            # Calculate EBITDA if we have the components
-            ebitda_val = None
-            if 'pbdt' in financial_data and financial_data['pbdt'] and 'depreciation' in financial_data and financial_data['depreciation']:
-                ebitda_val = financial_data['pbdt'] + abs(financial_data['depreciation'])
-                logger.debug(f"Calculated EBITDA = {financial_data['pbdt']} + {abs(financial_data['depreciation'])} = {ebitda_val}")
-            
-            # Create quarterly result record
+            # Now apply the Screener/Analyst transformations based on the mapping table
             quarter_record = {
                 'stock_id': stock.id,
                 'quarter': quarter_str,
                 'year': year,
                 'quarter_number': quarter_num,
-                'revenue': revenue_val,
-                'operating_profit': operating_profit_val,
-                'ebitda': ebitda_val,
-                'other_income': financial_data.get('other_income'),
-                'total_income': financial_data.get('total_income'),
-                'expenditure': financial_data.get('expenditure'),
-                'interest': financial_data.get('interest'),
-                'pbdt': financial_data.get('pbdt'),
-                'depreciation': financial_data.get('depreciation'),
-                'pbt': financial_data.get('pbt'),
-                'tax': financial_data.get('tax'),
-                'net_profit': net_profit_val,
-                'equity': financial_data.get('equity'),
-                'eps': financial_data.get('eps'),
-                'ceps': financial_data.get('ceps'),
-                'opm_percent': opm_percent,
-                'npm_percent': npm_percent,
                 'quarterly_result_link': f"https://www.bseindia.com/stock-share-price/{stock.name.lower().replace(' ', '-')}/{stock.nse_symbol.lower()}/{stock.bse_symbol}/financials-results/",
                 'source': 'BSE',
                 'filing_date': datetime.now().date(),
@@ -1049,7 +1289,101 @@ class BSEQuarterlySyncer:
                 'is_consolidated': True
             }
             
-            logger.info(f"Created quarter record for {quarter_str}: revenue={revenue_val}, net_profit={net_profit_val}")
+            # Apply transformations from BSE raw to Screener/Analyst values
+            
+            # 1. Sales/Revenue: Same (no change needed)
+            if 'revenue' in raw_values:
+                quarter_record['revenue'] = raw_values['revenue']
+                logger.debug(f"✅ Sales/Revenue: {raw_values['revenue']} (same as BSE raw)")
+            
+            # 2. Expenses (exclude Interest): BSE Expenditure - Interest
+            if 'expenditure' in raw_values and 'interest' in raw_values:
+                screener_expenses = raw_values['expenditure'] - raw_values['interest']
+                quarter_record['operating_expenses'] = screener_expenses
+                logger.debug(f"✅ Screener Expenses (excl. Interest): {raw_values['expenditure']} - {raw_values['interest']} = {screener_expenses}")
+            
+            # 3. Operating Profit (EBITDA): Apply Screener transformation rule
+            # Screener definition: Operating Profit = Revenue - (Expenditure - Interest)
+            if 'revenue' in raw_values and 'expenditure' in raw_values and 'interest' in raw_values:
+                screener_operating_profit = raw_values['revenue'] - (raw_values['expenditure'] - abs(raw_values['interest']))
+                quarter_record['ebitda'] = screener_operating_profit
+                quarter_record['operating_profit'] = screener_operating_profit
+                logger.debug(f"✅ Screener Operating Profit: Revenue ({raw_values['revenue']}) - (Expenditure ({raw_values['expenditure']}) - Interest ({abs(raw_values['interest'])})) = {screener_operating_profit}")
+            elif 'pbdt' in raw_values:
+                # Fallback: If no expenditure data, use PBDT + Interest
+                screener_operating_profit = raw_values['pbdt'] + abs(raw_values['interest'])
+                quarter_record['ebitda'] = screener_operating_profit
+                quarter_record['operating_profit'] = screener_operating_profit
+                logger.debug(f"✅ Screener Operating Profit (fallback): PBDT ({raw_values['pbdt']}) + Interest ({abs(raw_values['interest'])}) = {screener_operating_profit}")
+            
+            # 4. OPM %: Calculate using Screener Operating Profit
+            if 'operating_profit' in quarter_record and 'revenue' in quarter_record and quarter_record['revenue'] > 0:
+                opm_percent = (quarter_record['operating_profit'] / quarter_record['revenue']) * 100
+                quarter_record['opm_percent'] = opm_percent
+                logger.debug(f"✅ Screener OPM %: ({quarter_record['operating_profit']} / {quarter_record['revenue']}) * 100 = {opm_percent:.2f}%")
+            
+            # 5. Other Income: Same (no change needed)
+            if 'other_income' in raw_values:
+                quarter_record['other_income'] = raw_values['other_income']
+                logger.debug(f"✅ Other Income: {raw_values['other_income']} (same as BSE raw)")
+            
+            # 6. Interest: Separate line item (take directly from BSE)
+            if 'interest' in raw_values:
+                quarter_record['interest'] = raw_values['interest']
+                logger.debug(f"✅ Interest: {raw_values['interest']} (separate line item)")
+            
+            # 6a. Expenditure: Store raw BSE expenditure for reference
+            if 'expenditure' in raw_values:
+                quarter_record['expenditure'] = raw_values['expenditure']
+                logger.debug(f"✅ Expenditure: {raw_values['expenditure']} (raw BSE value)")
+            
+            # 7. Depreciation: Same (no change needed)
+            if 'depreciation' in raw_values:
+                quarter_record['depreciation'] = raw_values['depreciation']
+                logger.debug(f"✅ Depreciation: {raw_values['depreciation']} (same as BSE raw)")
+            
+            # 8. Profit Before Tax (PBT): Matches (no change needed)
+            if 'pbt' in raw_values:
+                quarter_record['pbt'] = raw_values['pbt']
+                logger.debug(f"✅ PBT: {raw_values['pbt']} (matches BSE raw)")
+            
+            # 9. Tax %: Calculate if we have tax amount and PBT
+            if 'tax' in raw_values and 'pbt' in raw_values and raw_values['pbt'] > 0:
+                tax_percent = (abs(raw_values['tax']) / raw_values['pbt']) * 100
+                quarter_record['tax_percent'] = tax_percent
+                logger.debug(f"✅ Tax %: ({abs(raw_values['tax'])} / {raw_values['pbt']}) * 100 = {tax_percent:.2f}%")
+            
+            # 10. Net Profit: Same (no change needed)
+            if 'net_profit' in raw_values:
+                quarter_record['net_profit'] = raw_values['net_profit']
+                logger.debug(f"✅ Net Profit: {raw_values['net_profit']} (same as BSE raw)")
+            
+            # 11. EPS: Same (no change needed)
+            if 'eps' in raw_values:
+                quarter_record['eps'] = raw_values['eps']
+                logger.debug(f"✅ EPS: {raw_values['eps']} (same as BSE raw)")
+            
+            # Calculate additional derived metrics for Screener/Analyst view
+            
+            # Net Margin %: Net Profit / Revenue
+            if 'net_profit' in quarter_record and 'revenue' in quarter_record and quarter_record['revenue'] > 0:
+                net_margin = (quarter_record['net_profit'] / quarter_record['revenue']) * 100
+                quarter_record['net_margin'] = net_margin
+                logger.debug(f"✅ Net Margin %: ({quarter_record['net_profit']} / {quarter_record['revenue']}) * 100 = {net_margin:.2f}%")
+            
+            # Total Income: Revenue + Other Income
+            if 'revenue' in quarter_record and 'other_income' in quarter_record:
+                total_income = quarter_record['revenue'] + quarter_record['other_income']
+                quarter_record['total_income'] = total_income
+                logger.debug(f"✅ Total Income: {quarter_record['revenue']} + {quarter_record['other_income']} = {total_income}")
+            
+            # Store raw BSE values for reference (optional - you can remove if not needed)
+            # quarter_record['raw_bse_values'] = raw_values  # Removed - not a valid database field
+            
+            # Show transformation summary
+            self._show_transformation_summary(raw_values, quarter_record, quarter_str)
+            
+            logger.info(f"Created quarter record for {quarter_str}: revenue={quarter_record.get('revenue')}, net_profit={quarter_record.get('net_profit')}, ebitda={quarter_record.get('ebitda')}")
             return quarter_record
             
         except Exception as e:
@@ -1194,7 +1528,11 @@ class BSEQuarterlySyncer:
             return 0
     
     def sync_stock_quarterly_results(self, stock: Stock) -> int:
-        """Sync quarterly results for a single stock from BSE only"""
+        """Sync quarterly results for a single stock from BSE only
+        
+        BSE provides financial values in crores. All values are stored in crores scale.
+        Screener transformations are applied to convert BSE raw values to Screener format.
+        """
         try:
             logger.info(f"🔄 Syncing quarterly results for {stock.nse_symbol} ({stock.name}) from BSE")
             
@@ -1278,7 +1616,7 @@ def main():
     
     try:
         # Test stocks: Reliance, TCS, Infosys
-        test_stocks = ['RELIANCE', 'TCS', 'INFY']
+        test_stocks = ['HDFCBANK', 'ITC', 'DLF']
         
         logger.info(f"🧪 Testing with {len(test_stocks)} stocks: {', '.join(test_stocks)}")
         

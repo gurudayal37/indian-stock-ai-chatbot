@@ -371,7 +371,9 @@
         async function loadQuarterlyResults(symbol) {
             try {
                 console.log(`Loading quarterly results for ${symbol}...`);
-                const response = await fetch(`/api/stocks/${symbol}/quarterly-results?quarters=8`);
+                // Add timestamp to prevent caching
+                const timestamp = new Date().getTime();
+                const response = await fetch(`/api/stocks/${symbol}/quarterly-results?quarters=8&t=${timestamp}`);
                 const data = await response.json();
                 console.log(`Quarterly data for ${symbol}:`, data);
                 renderQuarterlyTable(symbol, data);
