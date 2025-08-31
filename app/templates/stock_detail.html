@@ -311,18 +311,14 @@
                                      <i class="fas fa-chart-bar me-2 text-primary"></i>Quarterly Results
                                  </h5>
                                  <div>
-                                     <button class="btn btn-sm btn-outline-primary me-2" onclick="toggleConsolidated()">
-                                         <i class="fas fa-exchange-alt me-1"></i>Toggle View
-                                     </button>
                                      <button class="btn btn-sm btn-primary">
                                          <i class="fas fa-chart-pie me-1"></i>PRODUCT SEGMENTS
                                      </button>
                                  </div>
                              </div>
                              <p class="mb-0 mt-2 text-muted">
-                                 <span id="quarterlySubtitle">Multi-Source Data (Crores)</span>
+                                 <span id="quarterlySubtitle">Screener.in Quarterly Results (Crores)</span>
                                  <span class="badge bg-success me-2">Screener.in</span>
-                                 <span class="badge bg-primary me-2">BSE</span>
                                  <span class="text-muted ms-2">(C) = Consolidated</span>
                              </p>
                          </div>
@@ -468,7 +464,7 @@
             }
         }
 
-        async function loadQuarterlyResults(source = 'all') {
+        async function loadQuarterlyResults() {
             try {
                 document.getElementById('quarterlyLoading').style.display = 'block';
                 document.getElementById('quarterlyContent').style.display = 'none';
@@ -480,17 +476,7 @@
                 
                 console.log('Raw quarterly data received:', quarterlyData);
                 
-                // Filter data based on source if specified
-                let filteredData = quarterlyData;
-                if (source === 'screener') {
-                    filteredData = quarterlyData.filter(q => q.source === 'Screener');
-                } else if (source === 'bse') {
-                    filteredData = quarterlyData.filter(q => q.source === 'BSE');
-                }
-                
-                console.log(`Filtered data for source '${source}':`, filteredData);
-                
-                populateQuarterlyTable(filteredData);
+                populateQuarterlyTable(quarterlyData);
                 
                 document.getElementById('quarterlyLoading').style.display = 'none';
                 document.getElementById('quarterlyContent').style.display = 'block';
@@ -513,7 +499,7 @@
                 console.log('Operating Profit field:', firstQuarter.operating_profit, 'Type:', typeof firstQuarter.operating_profit);
                 console.log('EBITDA field:', firstQuarter.ebitda, 'Type:', typeof firstQuarter.ebitda);
                 console.log('Net Profit field:', firstQuarter.net_profit, 'Type:', typeof firstQuarter.net_profit);
-                console.log('Source:', firstQuarter.source, 'Is Consolidated:', firstQuarter.is_consolidated);
+                console.log('Is Consolidated:', firstQuarter.is_consolidated);
             }
             
             // Clear existing content
@@ -540,32 +526,25 @@
                 const th = document.createElement('th');
                 th.className = 'quarter-header';
                 
-                // Create quarter header with source and consolidated info
+                // Create quarter header with consolidated info
                 const quarterText = document.createElement('div');
                 quarterText.textContent = quarter.quarter;
                 
-                const sourceInfo = document.createElement('div');
-                sourceInfo.className = 'text-muted';
-                sourceInfo.style.fontSize = '0.8rem';
-                sourceInfo.style.fontWeight = 'normal';
-                
-                if (quarter.source === 'Screener') {
-                    sourceInfo.textContent = 'Screener.in';
-                    sourceInfo.style.color = '#28a745'; // Green for Screener
-                } else if (quarter.source === 'BSE') {
-                    sourceInfo.textContent = 'BSE';
-                    sourceInfo.style.color = '#007bff'; // Blue for BSE
-                } else {
-                    sourceInfo.textContent = quarter.source || 'Unknown';
-                }
+                const consolidatedInfo = document.createElement('div');
+                consolidatedInfo.className = 'text-muted';
+                consolidatedInfo.style.fontSize = '0.8rem';
+                consolidatedInfo.style.fontWeight = 'normal';
+                consolidatedInfo.style.color = '#28a745'; // Green for Screener.in
                 
                 // Add consolidated indicator
                 if (quarter.is_consolidated) {
-                    sourceInfo.textContent += ' (C)';
+                    consolidatedInfo.textContent = 'Screener.in (C)';
+                } else {
+                    consolidatedInfo.textContent = 'Screener.in';
                 }
                 
                 th.appendChild(quarterText);
-                th.appendChild(sourceInfo);
+                th.appendChild(consolidatedInfo);
                 headerRow.appendChild(th);
             });
             
@@ -673,25 +652,7 @@
             console.log('Final Table Structure - Headers:', headerRow.children.length, 'Data Rows:', tbody.children.length);
         }
         
-        function toggleConsolidated() {
-            // Toggle between different views
-            const subtitle = document.getElementById('quarterlySubtitle');
-            const currentText = subtitle.textContent;
-            
-            if (currentText.includes('Multi-Source')) {
-                subtitle.textContent = 'Screener.in Data Only (Crores)';
-                // Here you would reload quarterly data with only Screener data
-                loadQuarterlyResults('screener');
-            } else if (currentText.includes('Screener.in')) {
-                subtitle.textContent = 'BSE Data Only (Crores)';
-                // Here you would reload quarterly data with only BSE data
-                loadQuarterlyResults('bse');
-            } else {
-                subtitle.textContent = 'Multi-Source Data (Crores)';
-                // Here you would reload quarterly data with all sources
-                loadQuarterlyResults('all');
-            }
-        }
+        // Toggle function removed - only showing Screener.in data now
     </script>
 </body>
 </html>
