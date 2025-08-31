@@ -390,14 +390,17 @@ class ScreenerQuarterlySyncer:
                 'expenses': 'expenditure',
                 'expenses+': 'expenditure',  # Screener.in uses "Expenses+" format
                 'operating profit': 'operating_profit',
+                'opm %': 'opm_percent',  # Screener.in uses "OPM %" format
                 'other income': 'other_income',
                 'other income+': 'other_income',  # Screener.in uses "Other Income+" format
                 'interest': 'interest',
                 'depreciation': 'depreciation',
                 'profit before tax': 'pbt',
                 'tax': 'tax',
+                'tax %': 'tax_percent',  # Screener.in uses "Tax %" format
                 'net profit': 'net_profit',
                 'net profit+': 'net_profit',  # Screener.in uses "Net Profit+" format
+                'npm %': 'npm_percent',  # Screener.in uses "NPM %" format (if available)
                 'eps': 'eps',
                 'eps in rs': 'eps'  # Screener.in uses "EPS in Rs" format
             }
@@ -475,6 +478,10 @@ class ScreenerQuarterlySyncer:
                     quarter_record['operating_margin'] = quarter_record['opm_percent']
                 if quarter_record.get('npm_percent') is not None:
                     quarter_record['net_margin'] = quarter_record['npm_percent']
+                
+                # Ensure tax_percent is properly set
+                if quarter_record.get('tax_percent') is not None:
+                    quarter_record['tax_percent'] = quarter_record['tax_percent']
                 
                 logger.info(f"✅ Stored {quarter_record['quarter']} data exactly as provided by Screener.in")
                 
