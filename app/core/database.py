@@ -5,7 +5,7 @@ from app.core.config import settings
 
 # Create database engine
 engine = create_engine(
-    settings.database_url.replace('postgresql://', 'postgresql+psycopg://'),
+    settings.database_url.replace('postgresql://', 'postgresql+psycopg2://'),
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.debug
