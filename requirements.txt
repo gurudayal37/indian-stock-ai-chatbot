@@ -2,7 +2,7 @@
 fastapi==0.116.1
 uvicorn==0.35.0
 sqlalchemy==2.0.23
-psycopg[binary]==3.1.13
+psycopg2-binary==2.9.9
 pydantic==2.5.0
 
 # Data collection and processing
