@@ -5,8 +5,9 @@ Scrapes quarterly results from BSE website with Yahoo Finance fallback
 
 TRANSFORMATION LOGIC - BSE Raw to Screener/Analyst Values:
 
-IMPORTANT: BSE displays financial values in crores (e.g., "52,788.00" = 52,788 crores)
+IMPORTANT: BSE displays all financial values in crores (e.g., "52,788.00" = 52,788 crores)
 All values are stored and processed in crores scale. No scaling is applied during parsing.
+Simple sequential column parsing since all BSE data is in crores.
 
 Based on the mapping table provided, this syncer implements the following transformations:
 
@@ -683,55 +684,12 @@ class BSEQuarterlySyncer:
                     header_cells = header_row.find_all(['td', 'th'])
                     quarters = []
                     
-                    # IMPORTANT: BSE shows data in both "in Cr." and "in Million" columns
-                    # We need to identify which columns are the "in Cr." columns and only parse those
-                    # Look for the "(in cr.)" header to identify crores columns
-                    crores_start_idx = None
-                    crores_end_idx = None
-                    
-                    for i, cell in enumerate(header_cells):
+                    # BSE shows all values in crores - just parse all columns that look like quarters
+                    for cell in header_cells:
                         cell_text = cell.get_text(strip=True).strip()
-                        if '(in cr.)' in cell_text.lower() and crores_start_idx is None:
-                            # Only take the FIRST occurrence of "(in cr.)" - this is the real crores data
-                            crores_start_idx = i
-                            logger.info(f"🔍 Found 'in Cr.' columns starting at index {i}")
-                        elif '(in million)' in cell_text.lower():
-                            # This marks the end of crores columns and start of million columns
-                            crores_end_idx = i
-                            logger.info(f"🔍 Found 'in Million' columns starting at index {i}")
-                            break
-                    
-                    # If we found crores columns, only parse those
-                    if crores_start_idx is not None:
-                        if crores_end_idx is None:
-                            # If no million columns found, take all columns after crores start
-                            crores_end_idx = len(header_cells)
-                        
-                        # Extract only the crores quarter columns
-                        crores_columns = header_cells[crores_start_idx:crores_end_idx]
-                        for cell in crores_columns:
-                            cell_text = cell.get_text(strip=True).strip()
-                            if any(month in cell_text.lower() for month in ['jun-', 'mar-', 'dec-', 'sep-']):
-                                quarters.append(cell_text)
-                        
-                        logger.info(f"📅 Found {len(quarters)} crores quarters: {quarters}")
-                        
-                        # CRITICAL: Validate that we're not accidentally picking up million columns
-                        if any('million' in cell.get_text(strip=True).lower() for cell in crores_columns):
-                            logger.error(f"🚨 CRITICAL ERROR: Found 'million' in supposed crores columns! This will cause 10x scaling!")
-                            logger.error(f"🚨 Crores columns range: {crores_start_idx} to {crores_end_idx}")
-                            logger.error(f"🚨 Header cells: {[cell.get_text(strip=True) for cell in header_cells]}")
-                            # Reset to prevent wrong parsing
-                            crores_start_idx = None
-                            crores_end_idx = None
-                            quarters = []
-                    else:
-                        # Fallback: parse all columns that look like quarters
-                        for cell in header_cells:
-                            cell_text = cell.get_text(strip=True).strip()
-                            if any(month in cell_text.lower() for month in ['jun-', 'mar-', 'dec-', 'sep-']):
-                                quarters.append(cell_text)
-                        logger.info(f"📅 Found {len(quarters)} quarters (fallback): {quarters}")
+                        if any(month in cell_text.lower() for month in ['jun-', 'mar-', 'dec-', 'sep-']):
+                            quarters.append(cell_text)
+                    logger.info(f"📅 Found {len(quarters)} quarters: {quarters}")
                     
                     # Parse data rows
                     for row in rows:
@@ -751,23 +709,14 @@ class BSEQuarterlySyncer:
                         if any(keyword in metric_name for keyword in ['revenue', 'sales', 'other income', 'total income', 'expenditure', 'expenses', 'interest', 'pbdt', 'depreciation', 'pbt', 'profit before tax', 'tax', 'net profit', 'equity', 'eps', 'ceps', 'opm %', 'npm %']):
                             logger.debug(f"📊 Processing metric: {metric_name}")
                             
-                            # Extract values for each quarter (only from crores columns)
+                            # Extract values for each quarter (simple sequential indexing)
                             for quarter_idx, quarter in enumerate(quarters):
-                                if crores_start_idx is not None:
-                                    # Use the crores column index
-                                    value_cell_idx = crores_start_idx + quarter_idx
-                                    logger.debug(f"🔍 Crores column indexing: crores_start_idx={crores_start_idx}, quarter_idx={quarter_idx}, value_cell_idx={value_cell_idx}")
-                                else:
-                                    # Fallback: use sequential indexing
-                                    value_cell_idx = quarter_idx + 1
-                                    logger.debug(f"🔍 Fallback indexing: quarter_idx={quarter_idx}, value_cell_idx={value_cell_idx}")
+                                # Use simple sequential indexing since all values are in crores
+                                value_cell_idx = quarter_idx + 1
                                 
                                 if value_cell_idx < len(cells):  # Ensure we have enough cells
                                     value_cell = cells[value_cell_idx]
                                     value_text = value_cell.get_text(strip=True).strip()
-                                    
-                                    # Add debug logging for the actual value being parsed
-                                    logger.debug(f"🔍 Parsing value: quarter={quarter}, metric={metric_name}, cell_idx={value_cell_idx}, raw_text='{value_text}'")
                                     
                                     # Skip if no value or if it's a link
                                     if not value_text or value_text in ['--', 'standalone', 'consolidated', 'segment']:
@@ -1067,20 +1016,8 @@ class BSEQuarterlySyncer:
                 
                 logger.debug(f"🔍 Parsed '{value_text}' -> cleaned: '{cleaned_text}' -> extracted: '{numeric_match.group(1)}' -> final: {numeric_value}")
                 
-                # Add additional validation to catch potential scaling issues
-                if numeric_value > 1000000:  # If value is over 10 lakh crores, it's suspicious
-                    logger.warning(f"⚠️ SUSPICIOUS VALUE: '{value_text}' parsed as {numeric_value} - this seems too large for crores!")
-                
-                # CRITICAL: Additional check for million values (10x larger than expected)
-                # BSE typically shows revenue in crores, so values like 210,589.8 are suspicious
-                # This suggests we might be parsing million columns instead of crores
-                if numeric_value > 100000:  # If value is over 1 lakh crores, double-check
-                    logger.warning(f"🚨 POTENTIAL MILLION VALUE: '{value_text}' parsed as {numeric_value} - this might be in millions, not crores!")
-                    # For debugging, let's check if this looks like a million value
-                    if numeric_value > 10000:
-                        logger.error(f"🚨 HIGH PROBABILITY: This value {numeric_value} appears to be in millions (10x larger than expected crores)")
-                        # Reject this value - it's clearly in millions
-                        return None
+                # BSE shows all values in crores - no scaling validation needed
+                # Values like 52,788.00 are correctly 52,788 crores
                 
                 return -numeric_value if is_negative else numeric_value
             
