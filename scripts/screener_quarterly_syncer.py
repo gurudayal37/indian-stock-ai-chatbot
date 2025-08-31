@@ -268,7 +268,7 @@ class ScreenerQuarterlySyncer:
                             continue
                         
                         # Check if this is a financial metric we care about
-                        if any(keyword in metric_name for keyword in ['sales', 'expenses', 'operating profit', 'other income', 'interest', 'depreciation', 'profit before tax', 'tax', 'net profit', 'eps']):
+                        if any(keyword in metric_name for keyword in ['sales', 'expenses', 'operating profit', 'opm %', 'other income', 'interest', 'depreciation', 'profit before tax', 'tax', 'tax %', 'net profit', 'eps']):
                             logger.debug(f"📊 Processing metric: {metric_name}")
                             
                             # Extract values for each quarter (simple sequential indexing)
@@ -390,14 +390,14 @@ class ScreenerQuarterlySyncer:
                 'expenses': 'expenditure',
                 'expenses+': 'expenditure',  # Screener.in uses "Expenses+" format
                 'operating profit': 'operating_profit',
-                'opm %': 'opm_percent',  # Screener.in uses "OPM %" format
+                'opm %': 'opm_percent',  # Screener.in uses "opm %" format (lowercase)
                 'other income': 'other_income',
                 'other income+': 'other_income',  # Screener.in uses "Other Income+" format
                 'interest': 'interest',
                 'depreciation': 'depreciation',
                 'profit before tax': 'pbt',
                 'tax': 'tax',
-                'tax %': 'tax_percent',  # Screener.in uses "Tax %" format
+                'tax %': 'tax_percent',  # Screener.in uses "tax %" format (lowercase)
                 'net profit': 'net_profit',
                 'net profit+': 'net_profit',  # Screener.in uses "Net Profit+" format
                 'npm %': 'npm_percent',  # Screener.in uses "NPM %" format (if available)
@@ -406,6 +406,7 @@ class ScreenerQuarterlySyncer:
             }
             
             # Set the raw metric value and store for calculations
+            logger.debug(f"🔍 Processing metric: '{metric_name}' -> looking for match in mapping")
             db_field = metric_mapping.get(metric_name)
             if db_field:
                 # Parse numeric value
@@ -415,6 +416,8 @@ class ScreenerQuarterlySyncer:
                     raw_values[db_field] = raw_value
                     quarter_record[db_field] = raw_value
                     logger.debug(f"✅ Set {db_field} = {raw_value} (raw Screener.in value) for Q{quarter_num} {year}")
+            else:
+                logger.debug(f"⚠️ No mapping found for metric: '{metric_name}'")
             
             # Note: All Screener transformations are now handled in _apply_screener_transformations
             # after all metrics for a quarter are collected
