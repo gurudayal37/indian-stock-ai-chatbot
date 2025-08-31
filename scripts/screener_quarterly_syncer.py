@@ -459,67 +459,29 @@ class ScreenerQuarterlySyncer:
     
     def _apply_screener_transformations(self, quarterly_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Store Screener.in data exactly as provided - NO TRANSFORMATIONS NEEDED"""
-        transformed_results = []
+        logger.info(f"📊 Storing {len(quarterly_results)} quarterly results exactly as provided by Screener.in...")
         
         for quarter_record in quarterly_results:
-            logger.info(f"🔄 Applying Screener transformations for {quarter_record['quarter']}")
+            logger.info(f"📊 Storing {quarter_record['quarter']} data from Screener.in without modifications")
             
             try:
-                # Get raw values for calculations
-                revenue = quarter_record.get('revenue', 0)
-                expenditure = quarter_record.get('expenditure', 0)
-                interest = quarter_record.get('interest', 0)
-                other_income = quarter_record.get('other_income', 0)
-                pbt = quarter_record.get('pbt', 0)
-                tax = quarter_record.get('tax', 0)
-                net_profit = quarter_record.get('net_profit', 0)
+                # Screener.in already provides correct financial metrics - no transformations needed
+                # Just ensure we have the required fields for our database
+                if quarter_record.get('operating_profit') is not None:
+                    quarter_record['ebitda'] = quarter_record['operating_profit']  # EBITDA = Operating Profit
                 
-                # Rule 1: Expenses (Screener_Expenses = Screener_Expenses – Screener_Interest)
-                screener_expenses = expenditure - interest if expenditure and interest else expenditure
-                quarter_record['expenditure'] = screener_expenses
-                logger.info(f"✅ Rule 1 - Expenses: Screener_Expenses({expenditure}) – Screener_Interest({interest}) = {screener_expenses}")
+                # Set operating_margin and net_margin to match the percentages from Screener.in
+                if quarter_record.get('opm_percent') is not None:
+                    quarter_record['operating_margin'] = quarter_record['opm_percent']
+                if quarter_record.get('npm_percent') is not None:
+                    quarter_record['net_margin'] = quarter_record['npm_percent']
                 
-                # Rule 2: Operating Profit (Screener_OperatingProfit = Revenue - (Expenditure - Interest))
-                screener_operating_profit = revenue - (screener_expenses - interest) if revenue and screener_expenses and interest else None
-                quarter_record['operating_profit'] = screener_operating_profit
-                quarter_record['ebitda'] = screener_operating_profit  # EBITDA = Operating Profit
-                logger.info(f"✅ Rule 2 - Operating Profit: Revenue({revenue}) - (Expenditure({screener_expenses}) - Interest({interest})) = {screener_operating_profit}")
-                
-                # Rule 3: OPM% (Screener_OPM% = (Screener_OperatingProfit / Screener_Sales) * 100)
-                if screener_operating_profit and revenue:
-                    opm_percent = (screener_operating_profit / revenue) * 100
-                    quarter_record['opm_percent'] = opm_percent
-                    quarter_record['operating_margin'] = opm_percent
-                    logger.info(f"✅ Rule 3 - OPM%: (Screener_OperatingProfit({screener_operating_profit}) / Screener_Sales({revenue})) * 100 = {opm_percent:.2f}%")
-                
-                # Tax % (Screener_Tax% = (Tax / PBT) * 100)
-                if tax and pbt:
-                    tax_percent = (abs(tax) / pbt) * 100
-                    quarter_record['tax_percent'] = tax_percent
-                    logger.info(f"✅ Tax %: (|Tax({tax}| / PBT({pbt})) * 100 = {tax_percent:.2f}%")
-                
-                # Net Margin % (Net Profit / Revenue * 100)
-                if net_profit and revenue:
-                    net_margin_percent = (net_profit / revenue) * 100
-                    quarter_record['npm_percent'] = net_margin_percent
-                    quarter_record['net_margin'] = net_margin_percent
-                    logger.info(f"✅ Net Margin %: (Net Profit({net_profit}) / Revenue({revenue})) * 100 = {net_margin_percent:.2f}%")
-                
-                # Total Income (Revenue + Other Income)
-                if revenue and other_income:
-                    total_income = revenue + other_income
-                    quarter_record['total_income'] = total_income
-                    logger.info(f"✅ Total Income: Revenue({revenue}) + Other Income({other_income}) = {total_income}")
-                
-                logger.info(f"✅ Successfully applied all Screener transformations for {quarter_record['quarter']}")
-                transformed_results.append(quarter_record)
+                logger.info(f"✅ Stored {quarter_record['quarter']} data exactly as provided by Screener.in")
                 
             except Exception as e:
-                logger.error(f"❌ Error applying transformations for {quarter_record['quarter']}: {e}")
-                # Still add the record even if transformations fail
-                transformed_results.append(quarter_record)
+                logger.error(f"❌ Error processing {quarter_record['quarter']}: {e}")
         
-        return transformed_results
+        return quarterly_results
     
     def _save_quarterly_results(self, stock: Stock, quarterly_results: List[Dict[str, Any]]) -> bool:
         """Save quarterly results to database"""
