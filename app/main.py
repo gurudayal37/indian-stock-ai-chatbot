@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import os
+from sqlalchemy import text
 
 from app.api.stocks import router as stocks_router
 from app.api.charts import router as charts_router
@@ -36,7 +37,7 @@ async def test_database():
         
         # Test database connection
         with engine.connect() as conn:
-            result = conn.execute("SELECT 1")
+            result = conn.execute(text("SELECT 1"))
             db_test = "✅ Database connection successful"
         
         # Check environment variables
@@ -51,7 +52,7 @@ async def test_database():
             "database": db_test,
             "environment_variables": env_vars,
             "settings_active_db": settings.active_database,
-            "settings_db_url": str(settings.database_url)[:50] + "..."
+            "settings_db_url": str(settings.effective_database_url)[:50] + "..."
         }
         
     except Exception as e:
