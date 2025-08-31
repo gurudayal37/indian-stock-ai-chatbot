@@ -3,27 +3,29 @@
 Screener.in Quarterly Results Syncer
 
 This script scrapes quarterly financial results from Screener.in website
-and applies the same Screener/Analyst transformations as the BSE syncer.
+and stores them exactly as provided without any transformations.
 
-TRANSFORMATION LOGIC - Screener.in Raw to Screener/Analyst Values:
+DATA STORAGE LOGIC - Screener.in Raw Values (NO TRANSFORMATIONS):
 
 IMPORTANT: Screener.in displays all financial values in crores (e.g., "52,788" = 52,788 crores)
-All values are stored and processed in crores scale. No scaling is applied during parsing.
-Simple sequential column parsing since all Screener data is in crores.
+All values are stored exactly as provided by Screener.in without any modifications.
+Screener.in already provides the correct financial metrics that financial analysts use.
 
-Based on the mapping table provided, this syncer implements the following transformations:
+This syncer stores the following fields exactly as provided by Screener.in:
 
-1. Sales (same): Screener_Sales = Screener_Sales
-2. Expenses (exclude Interest): Screener_Expenses = Screener_Expenses – Screener_Interest  
-3. Operating Profit (EBITDA): Screener_OperatingProfit = Revenue - (Expenditure - Interest)
-4. OPM % (recalculated): Screener_OPM% = (Screener_OperatingProfit / Screener_Sales) * 100
-5. Other Income (same): Screener_OtherIncome = Screener_OtherIncome
-6. Interest (same): Screener_Interest = Screener_Interest
-7. Depreciation (same): Screener_Depreciation = Screener_Depreciation
-8. Profit Before Tax (PBT): Screener_PBT = Screener_PBT
-9. Tax % (recalculated): Screener_Tax% = (Tax / PBT) * 100
-10. Net Profit (same): Screener_NetProfit = Screener_NetProfit
-11. EPS (same): Screener_EPS = Screener_EPS
+1. Sales: Screener_Sales (no change)
+2. Expenses: Screener_Expenses (no change) 
+3. Operating Profit: Screener_OperatingProfit (no change)
+4. OPM %: Screener_OPM% (no change)
+5. Other Income: Screener_OtherIncome (no change)
+6. Interest: Screener_Interest (no change)
+7. Depreciation: Screener_Depreciation (no change)
+8. Profit Before Tax: Screener_PBT (no change)
+9. Tax %: Screener_Tax% (no change)
+10. Net Profit: Screener_NetProfit (no change)
+11. EPS: Screener_EPS (no change)
+
+NO CALCULATIONS OR TRANSFORMATIONS ARE PERFORMED - DATA IS STORED AS-IS
 
 The syncer handles both consolidated and standalone results, defaulting to consolidated.
 """
@@ -107,15 +109,15 @@ class ScreenerQuarterlySyncer:
                 logger.warning(f"⚠️ No quarterly results found for {stock.nse_symbol}")
                 return False
             
-            # Apply Screener transformations
-            logger.info(f"🔄 Applying Screener transformations to {len(quarterly_results)} quarterly results...")
-            transformed_results = self._apply_screener_transformations(quarterly_results)
+            # Store Screener.in data exactly as provided
+            logger.info(f"📊 Storing {len(quarterly_results)} quarterly results exactly as provided by Screener.in...")
+            processed_results = self._apply_screener_transformations(quarterly_results)
             
             # Save to database
-            success = self._save_quarterly_results(stock, transformed_results)
+            success = self._save_quarterly_results(stock, processed_results)
             
             if success:
-                logger.info(f"✅ Successfully synced {len(transformed_results)} quarterly results for {stock.nse_symbol}")
+                logger.info(f"✅ Successfully synced {len(processed_results)} quarterly results for {stock.nse_symbol}")
                 return True
             else:
                 logger.error(f"❌ Failed to save quarterly results for {stock.nse_symbol}")
@@ -456,7 +458,7 @@ class ScreenerQuarterlySyncer:
             return None
     
     def _apply_screener_transformations(self, quarterly_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Apply Screener/Analyst transformations to quarterly results"""
+        """Store Screener.in data exactly as provided - NO TRANSFORMATIONS NEEDED"""
         transformed_results = []
         
         for quarter_record in quarterly_results:
