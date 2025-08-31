@@ -1,19 +1,19 @@
 # Core dependencies
-fastapi==0.116.1
-uvicorn==0.35.0
+fastapi==0.104.1
+uvicorn==0.24.0
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
 pydantic==2.5.0
 
 # Data collection and processing
 requests==2.31.0
-pandas>=2.3.0
-numpy>=1.27.0
+pandas==2.1.4
+numpy==1.25.2
 yfinance==0.2.28
 
 # Web and UI
-jinja2==3.1.6
-python-multipart==0.0.20
+jinja2==3.1.2
+python-multipart==0.0.6
 
 # Database
 python-dotenv==1.0.0
