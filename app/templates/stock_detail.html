@@ -317,9 +317,9 @@
                                  </div>
                              </div>
                              <p class="mb-0 mt-2 text-muted">
-                                 <span id="quarterlySubtitle">Screener.in Quarterly Results (Crores)</span>
-                                 <span class="badge bg-success me-2">Screener.in</span>
-                                 <span class="text-muted ms-2">(C) = Consolidated</span>
+                                             <span id="quarterlySubtitle">Quarterly Results</span>
+            <br>
+            <span id="quarterlyType" class="text-muted" style="font-size: 0.9rem;"></span>
                              </p>
                          </div>
                          <div class="card-body p-0">
@@ -521,6 +521,15 @@
             
             console.log('Sorted Quarters:', sortedQuarters);
             
+            // Set the subtitle based on whether data is consolidated or standalone
+            const firstQuarter = sortedQuarters[0];
+            const quarterlyTypeElement = document.getElementById('quarterlyType');
+            if (firstQuarter.is_consolidated) {
+                quarterlyTypeElement.textContent = 'Consolidated Figures in Rs. Crores';
+            } else {
+                quarterlyTypeElement.textContent = 'Standalone Figures in Rs. Crores';
+            }
+            
             // Create individual header cells for each quarter (oldest to newest, left to right)
             sortedQuarters.forEach(quarter => {
                 const th = document.createElement('th');
@@ -534,14 +543,10 @@
                 consolidatedInfo.className = 'text-muted';
                 consolidatedInfo.style.fontSize = '0.8rem';
                 consolidatedInfo.style.fontWeight = 'normal';
-                consolidatedInfo.style.color = '#28a745'; // Green for Screener.in
+                consolidatedInfo.style.color = '#6c757d'; // Muted color for consolidated indicator
                 
-                // Add consolidated indicator
-                if (quarter.is_consolidated) {
-                    consolidatedInfo.textContent = 'Screener.in (C)';
-                } else {
-                    consolidatedInfo.textContent = 'Screener.in';
-                }
+                // No consolidated indicator needed - subtitle shows the type
+                consolidatedInfo.textContent = '';
                 
                 th.appendChild(quarterText);
                 th.appendChild(consolidatedInfo);
@@ -650,7 +655,7 @@
             console.log('Final Table Structure - Headers:', headerRow.children.length, 'Data Rows:', tbody.children.length);
         }
         
-        // Toggle function removed - only showing Screener.in data now
+                    // Toggle function removed - only showing quarterly data now
     </script>
 </body>
 </html>

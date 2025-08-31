@@ -98,15 +98,28 @@ class ScreenerQuarterlySyncer:
         try:
             logger.info(f"🔄 Syncing quarterly results for {stock.nse_symbol} ({stock.name}) from Screener.in")
             
-            # Construct Screener.in URL
-            screener_url = f"{self.base_url}/company/{stock.nse_symbol}/consolidated/#quarters"
-            logger.info(f"🔍 Scraping Screener.in URL: {screener_url}")
+            # First try consolidated quarterly results
+            consolidated_url = f"{self.base_url}/company/{stock.nse_symbol}/consolidated/#quarters"
+            logger.info(f"🔍 Trying consolidated URL: {consolidated_url}")
             
-            # Scrape quarterly results
-            quarterly_results = self._scrape_screener_quarterly_results(screener_url, stock)
+            quarterly_results = self._scrape_screener_quarterly_results(consolidated_url, stock)
+            
+            # If consolidated fails, try standalone quarterly results
+            if not quarterly_results:
+                standalone_url = f"{self.base_url}/company/{stock.nse_symbol}/#quarters"
+                logger.info(f"🔄 Consolidated failed, trying standalone URL: {standalone_url}")
+                
+                quarterly_results = self._scrape_screener_quarterly_results(standalone_url, stock)
+                
+                # Update the is_consolidated flag for standalone results
+                if quarterly_results:
+                    for result in quarterly_results:
+                        result['is_consolidated'] = False
+                        result['quarterly_result_link'] = standalone_url
+                    logger.info(f"📊 Found {len(quarterly_results)} standalone quarterly results for {stock.nse_symbol}")
             
             if not quarterly_results:
-                logger.warning(f"⚠️ No quarterly results found for {stock.nse_symbol}")
+                logger.warning(f"⚠️ No quarterly results found for {stock.nse_symbol} (neither consolidated nor standalone)")
                 return False
             
             # Store Screener.in data exactly as provided
@@ -268,7 +281,7 @@ class ScreenerQuarterlySyncer:
                             continue
                         
                         # Check if this is a financial metric we care about
-                        if any(keyword in metric_name for keyword in ['sales', 'expenses', 'operating profit', 'opm %', 'other income', 'interest', 'depreciation', 'profit before tax', 'tax', 'tax %', 'net profit', 'eps']):
+                        if any(keyword in metric_name for keyword in ['sales', 'revenue', 'expenses', 'operating profit', 'financing profit', 'opm %', 'financing margin %', 'other income', 'interest', 'depreciation', 'profit before tax', 'tax', 'tax %', 'net profit', 'eps']):
                             logger.debug(f"📊 Processing metric: {metric_name}")
                             
                             # Extract values for each quarter (simple sequential indexing)
@@ -374,36 +387,70 @@ class ScreenerQuarterlySyncer:
                 'year': year,
                 'quarter_number': quarter_num,
                 'source': 'Screener',
-                'quarterly_result_link': f"https://www.screener.in/company/{stock.nse_symbol}/consolidated/#quarters",
+                'quarterly_result_link': f"https://www.screener.in/company/{stock.nse_symbol}/consolidated/#quarters",  # Will be updated if standalone
                 'announcement_date': date.today(),
                 'filing_date': date.today(),
-                'is_consolidated': True  # Default to consolidated for Screener.in
+                'is_consolidated': True  # Will be updated if standalone
             }
             
             # Store raw Screener.in values for reference and calculations
             raw_values = {}
             
-            # Map metric names to database fields and store raw values
-            metric_mapping = {
-                'sales': 'revenue',
-                'sales+': 'revenue',  # Screener.in uses "Sales+" format
-                'expenses': 'expenditure',
-                'expenses+': 'expenditure',  # Screener.in uses "Expenses+" format
-                'operating profit': 'operating_profit',
-                'opm %': 'opm_percent',  # Screener.in uses "opm %" format (lowercase)
-                'other income': 'other_income',
-                'other income+': 'other_income',  # Screener.in uses "Other Income+" format
-                'interest': 'interest',
-                'depreciation': 'depreciation',
-                'profit before tax': 'pbt',
-                'tax': 'tax',
-                'tax %': 'tax_percent',  # Screener.in uses "tax %" format (lowercase)
-                'net profit': 'net_profit',
-                'net profit+': 'net_profit',  # Screener.in uses "Net Profit+" format
-                'npm %': 'npm_percent',  # Screener.in uses "NPM %" format (if available)
-                'eps': 'eps',
-                'eps in rs': 'eps'  # Screener.in uses "EPS in Rs" format
-            }
+            # Detect if this is a financial company based on metric names
+            is_financial_company = any(keyword in metric_name.lower() for keyword in [
+                'financing profit', 'financing margin', 'gross npa', 'net npa', 'revenue'
+            ])
+            
+            # Map metric names to database fields based on company type
+            if is_financial_company:
+                # Financial companies (banks, NBFCs) use different metric names
+                metric_mapping = {
+                    'revenue': 'revenue',  # Financial companies use "Revenue"
+                    'revenue+': 'revenue',  # Sometimes with "+" suffix
+                    'expenses': 'expenditure',
+                    'expenses+': 'expenditure',
+                    'financing profit': 'operating_profit',  # Financial equivalent of Operating Profit
+                    'financing margin %': 'opm_percent',  # Financial equivalent of OPM%
+                    'other income': 'other_income',
+                    'other income+': 'other_income',
+                    'interest': 'interest',
+                    'depreciation': 'depreciation',
+                    'profit before tax': 'pbt',
+                    'tax': 'tax',
+                    'tax %': 'tax_percent',
+                    'net profit': 'net_profit',
+                    'net profit+': 'net_profit',
+                    'npm %': 'npm_percent',
+                    'eps': 'eps',
+                    'eps in rs': 'eps',
+                    # Bank-specific metrics (not in DB schema yet - can be added later)
+                    # 'gross npa %': 'gross_npa_percent',
+                    # 'net npa %': 'net_npa_percent'
+                }
+                logger.debug(f"🏦 Using FINANCIAL company metric mapping for '{metric_name}'")
+            else:
+                # Regular companies (manufacturing, services, etc.)
+                metric_mapping = {
+                    'sales': 'revenue',
+                    'sales+': 'revenue',  # Regular companies use "Sales+"
+                    'expenses': 'expenditure',
+                    'expenses+': 'expenditure',
+                    'operating profit': 'operating_profit',
+                    'opm %': 'opm_percent',
+                    'other income': 'other_income',
+                    'other income+': 'other_income',
+                    'interest': 'interest',
+                    'depreciation': 'depreciation',
+                    'profit before tax': 'pbt',
+                    'tax': 'tax',
+                    'tax %': 'tax_percent',
+                    'net profit': 'net_profit',
+                    'net profit+': 'net_profit',
+                    'npm %': 'npm_percent',
+                    'eps': 'eps',
+                    'eps in rs': 'eps'
+                }
+                logger.debug(f"🏭 Using REGULAR company metric mapping for '{metric_name}'")
             
             # Set the raw metric value and store for calculations
             logger.debug(f"🔍 Processing metric: '{metric_name}' -> looking for match in mapping")
@@ -438,24 +485,26 @@ class ScreenerQuarterlySyncer:
             # Remove common non-numeric characters
             cleaned_text = value_text.replace(',', '').replace('(', '').replace(')', '').strip()
             
-            # Handle negative values (Screener.in uses parentheses for negatives)
-            is_negative = value_text.startswith('(') and value_text.endswith(')')
+            # Handle negative values (Screener.in uses minus signs OR parentheses for negatives)
+            is_negative = value_text.startswith('-') or (value_text.startswith('(') and value_text.endswith(')'))
             
-            # Extract numeric part
-            numeric_match = re.search(r'([\d,]+\.?\d*)', cleaned_text)
+            # Extract numeric part (including negative numbers)
+            numeric_match = re.search(r'(-?[\d,]+\.?\d*)', cleaned_text)
             if numeric_match:
-                numeric_value = float(numeric_match.group(1).replace(',', ''))
+                extracted_value = numeric_match.group(1)
+                numeric_value = float(extracted_value.replace(',', ''))
                 
                 # Screener.in shows values in crores (e.g., "52,788" means 52,788 crores)
                 # We store these values as-is in crores, no scaling needed
                 # The values should match exactly what Screener.in displays
                 
-                logger.debug(f"🔍 Parsed '{value_text}' -> cleaned: '{cleaned_text}' -> extracted: '{numeric_match.group(1)}' -> final: {numeric_value}")
+                logger.debug(f"🔍 Parsed '{value_text}' -> cleaned: '{cleaned_text}' -> extracted: '{extracted_value}' -> final: {numeric_value}")
                 
                 # Screener.in shows all values in crores - no scaling validation needed
                 # Values like 52,788.00 are correctly 52,788 crores
+                # Negative values like -24,833 are correctly -24,833 crores
                 
-                return -numeric_value if is_negative else numeric_value
+                return numeric_value  # The regex already captures the sign, so return as-is
             
             return None
             
@@ -613,7 +662,7 @@ def main():
         db = SessionLocal()
         
         # Test stocks
-        test_stocks = ['HDFCBANK', 'ITC', 'DLF', 'RELIANCE']
+        test_stocks = ['HDFCBANK', 'ITC', 'DLF', 'RELIANCE','BAJFINANCE','OLAELEC']
         
         for symbol in test_stocks:
             try:
