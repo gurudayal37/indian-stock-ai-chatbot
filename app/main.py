@@ -7,7 +7,7 @@ import os
 from app.api.stocks import router as stocks_router
 from app.api.charts import router as charts_router
 
-app = FastAPI(title="Stock Analysis Dashboard", version="1.0.0")
+app = FastAPI(title="Indian Stock AI Chatbot", version="1.0.0")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -15,25 +15,53 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Templates
 templates = Jinja2Templates(directory="app/templates")
 
-# Include API routers
+# Include routers
 app.include_router(stocks_router, prefix="/api")
 app.include_router(charts_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    """Home page with stock list"""
+async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.get("/stock/{symbol}", response_class=HTMLResponse)
-async def stock_detail(request: Request, symbol: str):
-    """Individual stock detail page"""
-    return templates.TemplateResponse("stock_detail.html", {"request": request, "symbol": symbol})
-
 @app.get("/dashboard", response_class=HTMLResponse)
-async def featured_dashboard(request: Request):
-    """Featured stocks dashboard page"""
+async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/test-db")
+async def test_database():
+    """Test endpoint to check database connectivity and environment variables"""
+    try:
+        from app.core.database import engine
+        from app.core.config import settings
+        
+        # Test database connection
+        with engine.connect() as conn:
+            result = conn.execute("SELECT 1")
+            db_test = "✅ Database connection successful"
+        
+        # Check environment variables
+        env_vars = {
+            "ACTIVE_DATABASE": os.getenv("ACTIVE_DATABASE", "NOT SET"),
+            "DATABASE_URL": os.getenv("DATABASE_URL", "NOT SET")[:50] + "..." if os.getenv("DATABASE_URL") else "NOT SET",
+            "PYTHONPATH": os.getenv("PYTHONPATH", "NOT SET")
+        }
+        
+        return {
+            "status": "success",
+            "database": db_test,
+            "environment_variables": env_vars,
+            "settings_active_db": settings.active_database,
+            "settings_db_url": str(settings.database_url)[:50] + "..."
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "environment_variables": {
+                "ACTIVE_DATABASE": os.getenv("ACTIVE_DATABASE", "NOT SET"),
+                "DATABASE_URL": os.getenv("DATABASE_URL", "NOT SET")[:50] + "..." if os.getenv("DATABASE_URL") else "NOT SET",
+                "PYTHONPATH": os.getenv("PYTHONPATH", "NOT SET")
+            }
+        }
