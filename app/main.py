@@ -28,6 +28,11 @@ async def read_root(request: Request):
 async def dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
+@app.get("/stock/{symbol}", response_class=HTMLResponse)
+async def stock_detail(request: Request, symbol: str):
+    """Individual stock detail page"""
+    return templates.TemplateResponse("stock_detail.html", {"request": request, "symbol": symbol})
+
 @app.get("/test-db")
 async def test_database():
     """Test endpoint to check database connectivity and environment variables"""
@@ -66,3 +71,7 @@ async def test_database():
                 "PYTHONPATH": os.getenv("PYTHONPATH", "NOT SET")
             }
         }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
