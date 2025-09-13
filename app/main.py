@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from app.api.stocks import router as stocks_router
 from app.api.charts import router as charts_router
+from app.api.sync import router as sync_router
 
 app = FastAPI(title="Indian Stock AI Chatbot", version="1.0.0")
 
@@ -19,6 +20,7 @@ templates = Jinja2Templates(directory="app/templates")
 # Include routers
 app.include_router(stocks_router, prefix="/api")
 app.include_router(charts_router, prefix="/api")
+app.include_router(sync_router, prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -77,6 +79,11 @@ async def growth_stocks(request: Request):
 async def dividend_stocks(request: Request):
     """Dividend stocks strategy page"""
     return templates.TemplateResponse("dividend_stocks.html", {"request": request})
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(request: Request):
+    """Admin panel for managing sync operations"""
+    return templates.TemplateResponse("admin.html", {"request": request})
 
 @app.get("/test-db")
 async def test_database():
