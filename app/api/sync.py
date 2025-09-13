@@ -3,13 +3,11 @@ from fastapi.responses import JSONResponse
 import asyncio
 from datetime import datetime
 import logging
-
-# Import your syncer
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from scripts.daily_ohlcv_syncer import DailyOHLCVSyncer
+# Add project root to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 router = APIRouter()
 
@@ -29,6 +27,9 @@ async def run_daily_sync():
         sync_status["is_running"] = True
         sync_status["last_run"] = datetime.now().isoformat()
         sync_status["error"] = None
+        
+        # Import syncer only when needed
+        from scripts.daily_ohlcv_syncer import DailyOHLCVSyncer
         
         # Run the daily syncer
         syncer = DailyOHLCVSyncer()
@@ -71,6 +72,9 @@ async def get_sync_status():
 async def test_sync():
     """Test sync with a single stock"""
     try:
+        # Import syncer only when needed
+        from scripts.daily_ohlcv_syncer import DailyOHLCVSyncer
+        
         syncer = DailyOHLCVSyncer()
         # Test with first stock
         stocks = syncer.get_all_stocks()

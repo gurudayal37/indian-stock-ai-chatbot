@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 class StockBase(BaseModel):
     """Base stock schema."""
     name: str = Field(..., description="Company name")
-    bse_symbol: str = Field(..., description="BSE trading symbol")
-    nse_symbol: str = Field(..., description="NSE trading symbol")
-    isin: str = Field(..., description="ISIN code")
+    bse_symbol: Optional[str] = Field(None, description="BSE trading symbol")
+    nse_symbol: Optional[str] = Field(None, description="NSE trading symbol")
+    isin: Optional[str] = Field(None, description="ISIN code")
 
 
 class StockCreate(StockBase):

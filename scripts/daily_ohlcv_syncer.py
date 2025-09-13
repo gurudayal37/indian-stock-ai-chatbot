@@ -35,6 +35,10 @@ from app.core.database import SessionLocal
 from app.models.stock import Stock, DailyPrice, SyncTracker
 
 # Configure logging
+import os
+# Create logs directory if it doesn't exist
+os.makedirs('logs', exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
