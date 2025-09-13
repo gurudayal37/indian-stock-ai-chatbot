@@ -82,15 +82,21 @@
                             <i class="fas fa-tools me-2"></i>Actions
                         </h5>
                         <div class="d-grid gap-2">
-                            <button class="btn btn-primary" onclick="triggerSync()" id="syncBtn">
-                                <i class="fas fa-play me-2"></i>Start Daily Sync
+                            <button class="btn btn-success btn-lg" onclick="triggerSync()" id="syncBtn">
+                                <i class="fas fa-sync-alt me-2"></i>Sync Now
                             </button>
                             <button class="btn btn-outline-primary" onclick="testSync()" id="testBtn">
-                                <i class="fas fa-vial me-2"></i>Test Sync
+                                <i class="fas fa-vial me-2"></i>Test Sync (Single Stock)
                             </button>
                             <button class="btn btn-outline-secondary" onclick="refreshStatus()">
                                 <i class="fas fa-refresh me-2"></i>Refresh Status
                             </button>
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <strong>Sync Now:</strong> Updates OHLCV data for all stocks from Yahoo Finance
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -151,12 +157,20 @@
             statusCard.className = 'card status-card';
             if (status.is_running) {
                 statusCard.classList.add('status-running');
+                // Keep polling when running
+                startStatusPolling();
             } else if (status.error) {
                 statusCard.classList.add('status-error');
+                // Stop polling when error or completed
+                stopStatusPolling();
             } else if (status.last_success) {
                 statusCard.classList.add('status-success');
+                // Stop polling when completed
+                stopStatusPolling();
             } else {
                 statusCard.classList.add('status-idle');
+                // Stop polling when idle
+                stopStatusPolling();
             }
 
             // Update content
@@ -164,33 +178,42 @@
             if (status.is_running) {
                 statusText = `
                     <div class="text-center">
-                        <div class="spinner-border text-white" role="status">
+                        <div class="spinner-border text-white mb-2" role="status">
                             <span class="visually-hidden">Running...</span>
                         </div>
-                        <p class="mt-2 mb-0">Sync is running...</p>
+                        <p class="mb-1"><strong>Syncing OHLCV Data...</strong></p>
+                        <p class="mb-0 small">This may take 5-10 minutes</p>
+                        <div class="progress mt-2" style="height: 6px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 100%"></div>
+                        </div>
                     </div>
                 `;
             } else if (status.error) {
                 statusText = `
                     <div class="text-center">
                         <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                        <p class="mb-1"><strong>Error:</strong></p>
+                        <p class="mb-1"><strong>Sync Failed:</strong></p>
                         <p class="mb-0 small">${status.error}</p>
                     </div>
                 `;
             } else if (status.last_success) {
+                const lastSuccess = new Date(status.last_success);
+                const timeAgo = getTimeAgo(lastSuccess);
                 statusText = `
                     <div class="text-center">
                         <i class="fas fa-check-circle fa-2x mb-2"></i>
-                        <p class="mb-1"><strong>Last Success:</strong></p>
-                        <p class="mb-0 small">${new Date(status.last_success).toLocaleString()}</p>
+                        <p class="mb-1"><strong>Last Sync Success:</strong></p>
+                        <p class="mb-0 small">${timeAgo}</p>
+                        <p class="mb-0 small text-muted">${lastSuccess.toLocaleString()}</p>
                     </div>
                 `;
             } else {
                 statusText = `
                     <div class="text-center">
                         <i class="fas fa-pause-circle fa-2x mb-2"></i>
-                        <p class="mb-0">No recent sync</p>
+                        <p class="mb-0"><strong>Ready to Sync</strong></p>
+                        <p class="mb-0 small text-muted">Click "Sync Now" to start</p>
                     </div>
                 `;
             }
@@ -198,11 +221,30 @@
             statusContent.innerHTML = statusText;
 
             // Update button states
-            syncBtn.disabled = status.is_running;
-            testBtn.disabled = status.is_running;
+            if (status.is_running) {
+                syncBtn.disabled = true;
+                testBtn.disabled = true;
+                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Syncing...';
+                syncBtn.classList.remove('btn-success', 'btn-info');
+                syncBtn.classList.add('btn-warning');
+            } else {
+                syncBtn.disabled = false;
+                testBtn.disabled = false;
+                syncBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Sync Now';
+                syncBtn.classList.remove('btn-warning', 'btn-info');
+                syncBtn.classList.add('btn-success');
+            }
         }
 
         async function triggerSync() {
+            const syncBtn = document.getElementById('syncBtn');
+            const testBtn = document.getElementById('testBtn');
+            
+            // Disable buttons and show loading
+            syncBtn.disabled = true;
+            testBtn.disabled = true;
+            syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting Sync...';
+            
             try {
                 const response = await fetch('/api/trigger-daily-sync', {
                     method: 'POST'
@@ -210,14 +252,29 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert('Sync started successfully!');
-                    refreshStatus();
+                    // Show success message
+                    syncBtn.innerHTML = '<i class="fas fa-check me-2"></i>Sync Started!';
+                    syncBtn.classList.remove('btn-success');
+                    syncBtn.classList.add('btn-info');
+                    
+                    // Show detailed success message
+                    showNotification('✅ Sync started successfully! This may take several minutes to complete.', 'success');
+                    
+                    // Start polling for status updates
+                    startStatusPolling();
                 } else {
-                    alert('Error: ' + data.message);
+                    throw new Error(data.message || 'Failed to start sync');
                 }
             } catch (error) {
                 console.error('Error triggering sync:', error);
-                alert('Error triggering sync: ' + error.message);
+                showNotification('❌ Error: ' + error.message, 'error');
+                
+                // Reset button
+                syncBtn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Sync Now';
+                syncBtn.classList.remove('btn-info');
+                syncBtn.classList.add('btn-success');
+                syncBtn.disabled = false;
+                testBtn.disabled = false;
             }
         }
 
@@ -239,11 +296,63 @@
             }
         }
 
-        // Clean up interval on page unload
-        window.addEventListener('beforeunload', function() {
+        // Helper functions
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) {
+                return `${diffInSeconds} seconds ago`;
+            } else if (diffInSeconds < 3600) {
+                const minutes = Math.floor(diffInSeconds / 60);
+                return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+            } else if (diffInSeconds < 86400) {
+                const hours = Math.floor(diffInSeconds / 3600);
+                return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+            } else {
+                const days = Math.floor(diffInSeconds / 86400);
+                return `${days} day${days > 1 ? 's' : ''} ago`;
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        function startStatusPolling() {
+            // Poll every 5 seconds when sync is running
             if (syncInterval) {
                 clearInterval(syncInterval);
             }
+            syncInterval = setInterval(refreshStatus, 5000);
+        }
+
+        function stopStatusPolling() {
+            if (syncInterval) {
+                clearInterval(syncInterval);
+                syncInterval = null;
+            }
+        }
+
+        // Clean up interval on page unload
+        window.addEventListener('beforeunload', function() {
+            stopStatusPolling();
         });
     </script>
 </body>
