@@ -3,23 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Analysis Dashboard</title>
+    <title>Indian Stock AI Trading Strategies</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .stock-card {
-            transition: transform 0.2s, box-shadow 0.2s;
+        .strategy-card {
+            transition: transform 0.3s, box-shadow 0.3s;
             cursor: pointer;
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
         }
-        .stock-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        .strategy-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
         }
-        .sector-badge {
-            font-size: 0.8rem;
+        .strategy-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
         }
-        .price-change-positive { color: #28a745; }
-        .price-change-negative { color: #dc3545; }
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4rem 0;
+        }
+        .strategy-gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .strategy-gradient-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .strategy-gradient-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .strategy-gradient-4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .strategy-gradient-5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .strategy-gradient-6 { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+        .strategy-gradient-7 { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+        .strategy-gradient-8 { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+        
+        .all-stocks-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .all-stocks-card:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
     </style>
 </head>
 <body>
@@ -27,189 +50,187 @@
         <div class="container">
             <a class="navbar-brand" href="/">
                 <i class="fas fa-chart-line me-2"></i>
-                Stock Analysis Dashboard
+                Indian Stock AI Trading Strategies
             </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/all-stocks-list">
+                    <i class="fas fa-list me-1"></i>All Stocks
+                </a>
+            </div>
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <h2>Nifty 50 Stocks</h2>
-                <p class="text-muted">Comprehensive analysis of Indian stock market</p>
-                <a href="/dashboard" class="btn btn-primary">
-                    <i class="fas fa-star me-2"></i>View Featured Stocks Dashboard
-                </a>
-            </div>
-            <div class="col-md-6">
-                <div class="input-group">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Search stocks...">
-                    <button class="btn btn-outline-secondary" type="button" id="searchBtn">
-                        <i class="fas fa-search"></i>
-                    </button>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container text-center">
+            <h1 class="display-4 fw-bold mb-3">AI-Powered Trading Strategies</h1>
+            <p class="lead mb-4">Discover advanced trading strategies backed by comprehensive market data and AI analysis</p>
+            <p class="mb-0">Choose from our curated collection of proven trading strategies for the Indian stock market</p>
+        </div>
+    </div>
+
+    <!-- Trading Strategies Section -->
+    <div class="container my-5">
+        <div class="row g-4">
+            <!-- PEAD Strategy -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-1 text-white" onclick="window.location.href='/pead-strategy'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-chart-bar strategy-icon"></i>
+                        <h4 class="card-title">PEAD Strategy</h4>
+                        <p class="card-text">Post-Earnings Announcement Drift - Capitalize on price movements after earnings announcements using historical data analysis.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Earnings Based</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="row mb-3">
-            <div class="col-md-3">
-                <select class="form-select" id="sectorFilter">
-                    <option value="">All Sectors</option>
-                </select>
+            <!-- All Time High Breakout -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-2 text-white" onclick="window.location.href='/all-time-high-breakout-stocks'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-rocket strategy-icon"></i>
+                        <h4 class="card-title">All Time High Breakout</h4>
+                        <p class="card-text">Identify stocks breaking through their all-time highs with strong momentum and volume confirmation.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Momentum</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-3">
-                <select class="form-select" id="industryFilter">
-                    <option value="">All Industries</option>
-                </select>
+
+            <!-- Momentum Stocks -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-3 text-white" onclick="window.location.href='/momentum-stocks'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-trending-up strategy-icon"></i>
+                        <h4 class="card-title">Momentum Stocks</h4>
+                        <p class="card-text">Find stocks with strong price momentum, high relative strength, and positive technical indicators.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Technical</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="row" id="stocksContainer">
-            <!-- Stocks will be loaded here -->
-        </div>
+            <!-- Statistical Arbitrage -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-4 text-white" onclick="window.location.href='/statistical-arbitrage'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-balance-scale strategy-icon"></i>
+                        <h4 class="card-title">Statistical Arbitrage</h4>
+                        <p class="card-text">Exploit price inefficiencies between correlated stocks using advanced statistical models and mean reversion strategies.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Quantitative</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        <div class="text-center mt-4" id="loadingSpinner" style="display: none;">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+            <!-- News Based Trading -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-5 text-white" onclick="window.location.href='/news-based-trading'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-newspaper strategy-icon"></i>
+                        <h4 class="card-title">News Based Trading</h4>
+                        <p class="card-text">Leverage real-time news sentiment analysis and event-driven trading opportunities in the Indian market.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Sentiment</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Value Investing -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-6 text-white" onclick="window.location.href='/value-investing'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-gem strategy-icon"></i>
+                        <h4 class="card-title">Value Investing</h4>
+                        <p class="card-text">Identify undervalued stocks with strong fundamentals, low P/E ratios, and high intrinsic value potential.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Fundamental</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Growth Stocks -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-7 text-white" onclick="window.location.href='/growth-stocks'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-seedling strategy-icon"></i>
+                        <h4 class="card-title">Growth Stocks</h4>
+                        <p class="card-text">Focus on companies with high revenue growth, expanding market share, and strong future earnings potential.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Growth</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dividend Stocks -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 strategy-gradient-8 text-white" onclick="window.location.href='/dividend-stocks'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-coins strategy-icon"></i>
+                        <h4 class="card-title">Dividend Stocks</h4>
+                        <p class="card-text">Find high-dividend yielding stocks with consistent payout history and strong cash flow generation.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Income</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Stocks List -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card strategy-card h-100 all-stocks-card" onclick="window.location.href='/all-stocks-list'">
+                    <div class="card-body text-center p-4">
+                        <i class="fas fa-list-alt strategy-icon"></i>
+                        <h4 class="card-title">All Stocks List</h4>
+                        <p class="card-text">Browse complete list of NIFTY 500 stocks with comprehensive data, filters, and analysis tools.</p>
+                        <div class="mt-3">
+                            <span class="badge bg-light text-dark">Complete Data</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        let allStocks = [];
-        let filteredStocks = [];
-
-        // Load stocks on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadStocks();
-            loadSectors();
-        });
-
-        async function loadStocks() {
-            showLoading(true);
-            try {
-                const response = await fetch('/api/stocks?limit=100');
-                allStocks = await response.json();
-                filteredStocks = [...allStocks];
-                renderStocks();
-            } catch (error) {
-                console.error('Error loading stocks:', error);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function loadSectors() {
-            try {
-                const response = await fetch('/api/sectors');
-                const sectors = await response.json();
-                
-                const sectorSelect = document.getElementById('sectorFilter');
-                sectors.forEach(sector => {
-                    const option = document.createElement('option');
-                    option.value = sector;
-                    option.textContent = sector;
-                    sectorSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading sectors:', error);
-            }
-        }
-
-        function renderStocks() {
-            const container = document.getElementById('stocksContainer');
-            container.innerHTML = '';
-
-            filteredStocks.forEach(stock => {
-                const stockCard = createStockCard(stock);
-                container.appendChild(stockCard);
-            });
-        }
-
-        function createStockCard(stock) {
-            const col = document.createElement('div');
-            col.className = 'col-md-6 col-lg-4 mb-3';
-            
-            const currentPrice = stock.current_price || 0;
-            const changePercent = stock.change_percent || 0;
-            const changeClass = changePercent >= 0 ? 'price-change-positive' : 'price-change-negative';
-            
-            col.innerHTML = `
-                <div class="card stock-card h-100" onclick="window.location.href='/stock/${stock.nse_symbol || stock.bse_symbol}'">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="card-title mb-0">${stock.name || 'N/A'}</h6>
-                            <span class="badge bg-secondary sector-badge">${stock.sector || 'N/A'}</span>
-                        </div>
-                        <p class="card-text text-muted small mb-2">${stock.nse_symbol || stock.bse_symbol}</p>
-                        
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <div class="fw-bold">₹${currentPrice.toLocaleString()}</div>
-                                <small class="${changeClass}">
-                                    ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%
-                                </small>
-                            </div>
-                            <div class="col-6">
-                                <div class="fw-bold">₹${(stock.market_cap / 10000000).toFixed(0)}Cr</div>
-                                <small class="text-muted">Market Cap</small>
-                            </div>
-                        </div>
-                        
-                        <div class="row mt-2 text-center">
-                            <div class="col-4">
-                                <small class="text-muted">P/E</small>
-                                <div class="fw-bold">${stock.pe_ratio ? stock.pe_ratio.toFixed(1) : 'N/A'}</div>
-                            </div>
-                            <div class="col-4">
-                                <small class="text-muted">P/B</small>
-                                <div class="fw-bold">${stock.pb_ratio ? stock.pb_ratio.toFixed(1) : 'N/A'}</div>
-                            </div>
-                            <div class="col-4">
-                                <small class="text-muted">ROE</small>
-                                <div class="fw-bold">${stock.roe ? stock.roe.toFixed(1) + '%' : 'N/A'}</div>
-                            </div>
-                        </div>
-                    </div>
+    <!-- Features Section -->
+    <div class="bg-light py-5">
+        <div class="container">
+            <div class="row text-center">
+                <div class="col-md-4 mb-4">
+                    <i class="fas fa-database fa-3x text-primary mb-3"></i>
+                    <h5>Comprehensive Data</h5>
+                    <p class="text-muted">5 years of historical OHLCV data and quarterly financial results for all NIFTY 500 stocks</p>
                 </div>
-            `;
-            
-            return col;
-        }
+                <div class="col-md-4 mb-4">
+                    <i class="fas fa-robot fa-3x text-primary mb-3"></i>
+                    <h5>AI-Powered Analysis</h5>
+                    <p class="text-muted">Advanced algorithms and machine learning models for strategy development and backtesting</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                    <h5>Real-time Updates</h5>
+                    <p class="text-muted">Daily data synchronization and real-time market analysis for accurate trading decisions</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        function showLoading(show) {
-            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
-        }
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-4">
+        <div class="container text-center">
+            <p class="mb-0">&copy; 2025 Indian Stock AI Trading Strategies. All rights reserved.</p>
+            <p class="small text-muted mt-2">Powered by comprehensive market data and AI analysis</p>
+        </div>
+    </footer>
 
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase();
-            filterStocks();
-        });
-
-        document.getElementById('sectorFilter').addEventListener('change', filterStocks);
-        document.getElementById('industryFilter').addEventListener('change', filterStocks);
-
-        function filterStocks() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const sectorFilter = document.getElementById('sectorFilter').value;
-            const industryFilter = document.getElementById('industryFilter').value;
-
-            filteredStocks = allStocks.filter(stock => {
-                const matchesSearch = !searchTerm || 
-                    stock.name?.toLowerCase().includes(searchTerm) ||
-                    stock.nse_symbol?.toLowerCase().includes(searchTerm) ||
-                    stock.bse_symbol?.toLowerCase().includes(searchTerm);
-                
-                const matchesSector = !sectorFilter || stock.sector === sectorFilter;
-                const matchesIndustry = !industryFilter || stock.industry === industryFilter;
-
-                return matchesSearch && matchesSector && matchesIndustry;
-            });
-
-            renderStocks();
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

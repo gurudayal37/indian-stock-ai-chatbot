@@ -33,6 +33,51 @@ async def stock_detail(request: Request, symbol: str):
     """Individual stock detail page"""
     return templates.TemplateResponse("stock_detail.html", {"request": request, "symbol": symbol})
 
+@app.get("/all-stocks-list", response_class=HTMLResponse)
+async def all_stocks_list(request: Request):
+    """All stocks list page with table format"""
+    return templates.TemplateResponse("all_stocks_list.html", {"request": request})
+
+@app.get("/all-time-high-breakout-stocks", response_class=HTMLResponse)
+async def all_time_high_breakout(request: Request):
+    """All Time High Breakout strategy page"""
+    return templates.TemplateResponse("all_time_high_breakout.html", {"request": request})
+
+@app.get("/pead-strategy", response_class=HTMLResponse)
+async def pead_strategy(request: Request):
+    """PEAD strategy page"""
+    return templates.TemplateResponse("pead_strategy.html", {"request": request})
+
+@app.get("/momentum-stocks", response_class=HTMLResponse)
+async def momentum_stocks(request: Request):
+    """Momentum stocks strategy page"""
+    return templates.TemplateResponse("momentum_stocks.html", {"request": request})
+
+@app.get("/statistical-arbitrage", response_class=HTMLResponse)
+async def statistical_arbitrage(request: Request):
+    """Statistical arbitrage strategy page"""
+    return templates.TemplateResponse("statistical_arbitrage.html", {"request": request})
+
+@app.get("/news-based-trading", response_class=HTMLResponse)
+async def news_based_trading(request: Request):
+    """News based trading strategy page"""
+    return templates.TemplateResponse("news_based_trading.html", {"request": request})
+
+@app.get("/value-investing", response_class=HTMLResponse)
+async def value_investing(request: Request):
+    """Value investing strategy page"""
+    return templates.TemplateResponse("value_investing.html", {"request": request})
+
+@app.get("/growth-stocks", response_class=HTMLResponse)
+async def growth_stocks(request: Request):
+    """Growth stocks strategy page"""
+    return templates.TemplateResponse("growth_stocks.html", {"request": request})
+
+@app.get("/dividend-stocks", response_class=HTMLResponse)
+async def dividend_stocks(request: Request):
+    """Dividend stocks strategy page"""
+    return templates.TemplateResponse("dividend_stocks.html", {"request": request})
+
 @app.get("/test-db")
 async def test_database():
     """Test endpoint to check database connectivity and environment variables"""
