@@ -120,10 +120,9 @@ async def get_quarterly_results(
         if not stock:
             raise HTTPException(status_code=404, detail="Stock not found")
         
-        # Only return Screener.in data (better quality, more comprehensive)
+        # Get quarterly results (prefer Screener data if available, otherwise any data)
         results = db.query(QuarterlyResult).filter(
-            QuarterlyResult.stock_id == stock.id,
-            QuarterlyResult.source == 'Screener'
+            QuarterlyResult.stock_id == stock.id
         ).order_by(
             QuarterlyResult.year.desc(),
             QuarterlyResult.quarter_number.desc()

@@ -19,3 +19,8 @@ python-multipart==0.0.6
 
 # Database
 python-dotenv==1.0.0
+
+# Scraping / Automation
+beautifulsoup4==4.12.3
+selenium==4.23.1
+webdriver-manager==4.0.2

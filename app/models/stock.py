@@ -107,6 +107,7 @@ class QuarterlyResult(Base):
     operating_margin = Column(Float)
     net_margin = Column(Float)
     eps = Column(Float)  # Earnings Per Share
+    expected_eps = Column(Float)  # Expected EPS (average of last 4 quarters)
     opm_percent = Column(Float)  # Operating Profit Margin %
     npm_percent = Column(Float)  # Net Profit Margin %
     tax_percent = Column(Float)  # Tax as percentage of PBT

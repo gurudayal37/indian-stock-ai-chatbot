@@ -6,75 +6,116 @@
     <title>PEAD Strategy - Post-Earnings Announcement Drift</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet">
     <style>
         .hero-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 3rem 0;
+            padding: 80px 0;
+            margin-bottom: 50px;
         }
         .strategy-card {
             background: white;
             border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
-            margin-bottom: 2rem;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
         }
-        .strategy-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-        }
-        .formula-box {
-            background: #f8f9fa;
-            border-left: 4px solid #667eea;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            border-radius: 0 8px 8px 0;
-        }
-        .method-box {
-            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
             border-radius: 10px;
-            padding: 1.5rem;
-            margin: 1rem 0;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
         }
-        .trading-rule {
-            background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            border-left: 4px solid #28a745;
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
         }
-        .research-paper {
-            background: linear-gradient(135deg, #fff3e0 0%, #fce4ec 100%);
-            border-radius: 10px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            border-left: 4px solid #ff9800;
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
-        .code-block {
-            background: #2d3748;
-            color: #e2e8f0;
-            padding: 1rem;
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        .table td {
+            vertical-align: middle;
+            border-color: #e9ecef;
+        }
+        .sue-positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .sue-negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .price-positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .price-negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 50px;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        .sortable:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .form-select {
+            border: 2px solid #e9ecef;
             border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            margin: 1rem 0;
+        }
+        .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
         }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="/">
-                <i class="fas fa-chart-line me-2"></i>
-                Indian Stock AI
+                <i class="fas fa-chart-line me-2"></i>Stock Analyzer
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/">
-                    <i class="fas fa-home me-1"></i>Home
-                </a>
-                <a class="nav-link" href="/all-stocks-list">
-                    <i class="fas fa-list me-1"></i>All Stocks
-                </a>
+                <a class="nav-link" href="/">Home</a>
+                <a class="nav-link" href="/all-stocks-list">All Stocks</a>
+                <a class="nav-link" href="/admin">Admin</a>
             </div>
         </div>
     </nav>
@@ -82,195 +123,403 @@
     <!-- Hero Section -->
     <div class="hero-section">
         <div class="container text-center">
-            <h1 class="display-4 fw-bold mb-3">
-                <i class="fas fa-chart-bar me-3"></i>PEAD Strategy
+            <h1 class="display-4 mb-4">
+                <i class="fas fa-chart-line me-3"></i>PEAD Strategy
             </h1>
-            <p class="lead mb-4">Post-Earnings Announcement Drift - Academic Research Based Trading</p>
-            <p class="mb-0">Based on the seminal 1968 research by Ball & Brown</p>
+            <p class="lead">Post-Earnings Announcement Drift Trading Strategy</p>
+            <p class="mb-0">Based on "An Empirical Evaluation of Accounting Income Numbers" by Ray Ball & Philip Brown, 1968</p>
         </div>
     </div>
 
-    <div class="container my-5">
-        <!-- Research Paper Reference -->
-        <div class="research-paper">
-            <h4 class="mb-3">
-                <i class="fas fa-graduation-cap me-2"></i>Research Foundation
-            </h4>
-            <h5 class="text-primary">"An Empirical Evaluation of Accounting Income Numbers"</h5>
-            <p class="mb-2"><strong>Authors:</strong> Ray Ball & Philip Brown, 1968</p>
-            <p class="mb-0"><strong>Journal:</strong> Journal of Accounting Research</p>
-            <p class="mt-2 mb-0"><em>This groundbreaking study established the foundation for earnings-based trading strategies and the PEAD anomaly.</em></p>
-        </div>
-
+    <div class="container">
         <!-- Strategy Overview -->
-        <div class="strategy-card p-4">
-            <h3 class="mb-4">
+        <div class="strategy-card">
+            <h2 class="mb-4">
                 <i class="fas fa-lightbulb me-2"></i>Strategy Overview
-            </h3>
-            <p class="lead">The Post-Earnings Announcement Drift (PEAD) is a well-documented market anomaly where stock prices continue to drift in the direction of earnings surprises for several weeks after earnings announcements.</p>
-            
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <h5><i class="fas fa-arrow-up text-success me-2"></i>Positive Surprise</h5>
-                    <p>When actual earnings exceed expectations, stocks tend to continue rising for 2-6 weeks.</p>
+            </h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalStocks">-</div>
+                        <div class="metric-label">Total Stocks</div>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <h5><i class="fas fa-arrow-down text-danger me-2"></i>Negative Surprise</h5>
-                    <p>When actual earnings fall short of expectations, stocks tend to continue declining for 2-6 weeks.</p>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="announcedStocks">-</div>
+                        <div class="metric-label">Results Announced</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="positiveSUE">-</div>
+                        <div class="metric-label">Positive SUE</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="negativeSUE">-</div>
+                        <div class="metric-label">Negative SUE</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Methodology -->
-        <div class="strategy-card p-4">
+        <!-- Quarterly Results Analysis -->
+        <div class="table-container">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="mb-0">
+                    <i class="fas fa-table me-2"></i>Quarterly Results Analysis
+                </h3>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-group mb-0">
+                        <label for="quarterSelect" class="form-label fw-bold">Quarter:</label>
+                        <select id="quarterSelect" class="form-select" style="width: 120px;">
+                            <option value="2">Q2 2025</option>
+                            <option value="1">Q1 2025</option>
+                            <option value="4">Q4 2024</option>
+                            <option value="3">Q3 2024</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="dateSelect" class="form-label fw-bold">Date:</label>
+                        <select id="dateSelect" class="form-select" style="width: 150px;">
+                            <option value="latest">19 Jul 2025</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <p class="text-muted mb-4">Post-Earnings Announcement Drift (PEAD) analysis with real-time price tracking</p>
+            
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="loading-content">
+                    <p class="mt-3 mb-2">Loading PEAD analysis data...</p>
+                    <div class="progress" style="width: 300px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <small class="text-muted mt-2 d-block">This may take a few seconds for the first load...</small>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="error-message" style="display: none;">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <span id="errorMessage">An error occurred while loading the data.</span>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="success-message" style="display: none;">
+                <i class="fas fa-check-circle me-2"></i>
+                <span id="successMessage">Data loaded successfully!</span>
+            </div>
+
+            <!-- Table -->
+            <div id="tableContainer" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="peadTable">
+                        <thead>
+                            <tr>
+                                <th>Announcement Date</th>
+                                <th>Stock Name</th>
+                                <th>NSE Symbol</th>
+                                <th>Reported EPS</th>
+                                <th>Expected EPS</th>
+                                <th>Unexpected EPS</th>
+                                <th class="sortable" data-column="sue_score">SUE Score <i class="fas fa-sort"></i></th>
+                                <th>Price on Announcement</th>
+                                <th>Price After 1 Week</th>
+                                <th>Price After 2 Weeks</th>
+                                <th>1 Week % Change</th>
+                                <th>2 Week % Change</th>
+                                <th>Signal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="peadTableBody">
+                            <!-- Data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Methodology Section -->
+        <div class="strategy-card">
             <h3 class="mb-4">
                 <i class="fas fa-calculator me-2"></i>Methodology & Calculations
             </h3>
-            
-            <div class="method-box">
-                <h5><i class="fas fa-chart-line me-2"></i>Method 1: Historical Average Approach</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Expected Earnings Calculation:</h6>
-                        <p><strong>Expected Earnings = Average EPS of previous 4 years</strong></p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Standard Deviation:</h6>
-                        <p><strong>Standard deviation of the last four years earnings</strong></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="method-box">
-                <h5><i class="fas fa-users me-2"></i>Method 2: Analyst Expectations Approach</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>Expected Earnings:</h6>
-                        <p><strong>Average of analyst expectations</strong></p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>Standard Deviation:</h6>
-                        <p><strong>Standard deviation of analyst expectations</strong></p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="formula-box">
-                <h5><i class="fas fa-square-root-alt me-2"></i>Standardized Unexpected Earnings (SUE) Formula</h5>
-                <div class="code-block">
-SUE = (Actual Earnings - Expected Earnings) / Standard Deviation
-                </div>
-                <p class="mt-2"><strong>Where:</strong></p>
-                <ul>
-                    <li><strong>Actual Earnings:</strong> Reported EPS for the quarter</li>
-                    <li><strong>Expected Earnings:</strong> Either historical average or analyst consensus</li>
-                    <li><strong>Standard Deviation:</strong> Volatility measure of earnings expectations</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Trading Rules -->
-        <div class="strategy-card p-4">
-            <h3 class="mb-4">
-                <i class="fas fa-trading-view me-2"></i>Trading Rules
-            </h3>
-            
-            <div class="trading-rule">
-                <h5><i class="fas fa-shopping-cart me-2"></i>Buy Signals</h5>
-                <ul>
-                    <li><strong>High SUE:</strong> SUE > +1.0 (Strong positive surprise)</li>
-                    <li><strong>Moderate SUE:</strong> SUE > +0.5 (Moderate positive surprise)</li>
-                    <li><strong>Action:</strong> Buy the stock immediately after earnings announcement</li>
-                </ul>
-            </div>
-
-            <div class="trading-rule">
-                <h5><i class="fas fa-arrow-down me-2"></i>Short Signals</h5>
-                <ul>
-                    <li><strong>Low SUE:</strong> SUE < -1.0 (Strong negative surprise)</li>
-                    <li><strong>Moderate SUE:</strong> SUE < -0.5 (Moderate negative surprise)</li>
-                    <li><strong>Action:</strong> Short the stock immediately after earnings announcement</li>
-                </ul>
-            </div>
-
-            <div class="trading-rule">
-                <h5><i class="fas fa-clock me-2"></i>Position Management</h5>
-                <ul>
-                    <li><strong>Entry:</strong> As soon as results are announced (within 1 hour)</li>
-                    <li><strong>Hold Period:</strong> Maximum 15 days (2 weeks)</li>
-                    <li><strong>Stop Loss:</strong> 2% of total portfolio value</li>
-                    <li><strong>Exit:</strong> Take profit or stop loss, whichever comes first</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Implementation Status -->
-        <div class="strategy-card p-4">
-            <h3 class="mb-4">
-                <i class="fas fa-cogs me-2"></i>Implementation Status
-            </h3>
-            
             <div class="row">
                 <div class="col-md-6">
-                    <h5><i class="fas fa-check-circle text-success me-2"></i>Completed Features</h5>
+                    <h5>Historical Average Method</h5>
                     <ul>
-                        <li>Historical earnings data collection</li>
-                        <li>Quarterly results database</li>
-                        <li>SUE calculation framework</li>
-                        <li>Real-time earnings announcements</li>
+                        <li><strong>Expected Earnings:</strong> Average EPS of last 4 quarters</li>
+                        <li><strong>Actual Earnings:</strong> Current quarter EPS</li>
+                        <li><strong>Unexpected Earnings:</strong> Actual - Expected</li>
+                        <li><strong>SUE Formula:</strong> Unexpected Earnings / Standard Deviation</li>
                     </ul>
                 </div>
                 <div class="col-md-6">
-                    <h5><i class="fas fa-clock text-warning me-2"></i>In Development</h5>
+                    <h5>Trading Rules</h5>
                     <ul>
-                        <li>Analyst expectations integration</li>
-                        <li>Automated SUE calculation</li>
-                        <li>Real-time trading signals</li>
-                        <li>Backtesting framework</li>
+                        <li><strong>High SUE (>1.0):</strong> BUY signal</li>
+                        <li><strong>Low SUE (<-1.0):</strong> SELL signal</li>
+                        <li><strong>Medium SUE (-1.0 to 1.0):</strong> HOLD</li>
+                        <li><strong>Hold Period:</strong> Up to 15 days or 2% stop loss</li>
                     </ul>
                 </div>
             </div>
-
-            <div class="alert alert-info mt-3">
-                <h6><i class="fas fa-info-circle me-2"></i>Current Status</h6>
-                <p class="mb-0">The PEAD strategy framework is being developed. Historical data is available for backtesting, and real-time implementation is in progress.</p>
-            </div>
         </div>
 
-        <!-- Risk Management -->
-        <div class="strategy-card p-4">
+        <!-- Research Foundation -->
+        <div class="strategy-card">
             <h3 class="mb-4">
-                <i class="fas fa-shield-alt me-2"></i>Risk Management
+                <i class="fas fa-book me-2"></i>Research Foundation
             </h3>
-            
             <div class="row">
-                <div class="col-md-4">
-                    <h6><i class="fas fa-exclamation-triangle text-warning me-2"></i>Market Risk</h6>
-                    <p>PEAD works best in efficient markets. Market crashes can override earnings effects.</p>
+                <div class="col-md-8">
+                    <h5>"An Empirical Evaluation of Accounting Income Numbers"</h5>
+                    <p><strong>Authors:</strong> Ray Ball & Philip Brown, 1968</p>
+                    <p><strong>Key Finding:</strong> Stock prices continue to drift in the direction of earnings surprises for several weeks after earnings announcements, creating profitable trading opportunities.</p>
+                    <p><strong>PEAD Anomaly:</strong> This market inefficiency allows traders to profit from the delayed price adjustment to earnings information.</p>
                 </div>
                 <div class="col-md-4">
-                    <h6><i class="fas fa-chart-line text-info me-2"></i>Liquidity Risk</h6>
-                    <p>Ensure sufficient trading volume for quick entry/exit positions.</p>
-                </div>
-                <div class="col-md-4">
-                    <h6><i class="fas fa-percentage text-danger me-2"></i>Position Sizing</h6>
-                    <p>Never risk more than 2% of portfolio on a single PEAD trade.</p>
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Strategy Status</h6>
+                        <p class="mb-0">✅ Data Collection Complete<br>✅ SUE Calculation Ready<br>✅ Price Performance Tracking<br>✅ Trading Signals Generated</p>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="text-center mt-4">
-            <a href="/all-stocks-list" class="btn btn-primary btn-lg me-3">
-                <i class="fas fa-list me-2"></i>View All Stocks
-            </a>
-            <a href="/admin" class="btn btn-outline-primary btn-lg">
-                <i class="fas fa-cogs me-2"></i>Admin Panel
-            </a>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentData = [];
+        let currentQuarter = 2;
+        let currentYear = 2025;
+        let sortColumn = 'sue_score';
+        let sortDirection = 'desc';
+
+        // Load PEAD data when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPEADData();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Quarter selection
+            document.getElementById('quarterSelect').addEventListener('change', function() {
+                currentQuarter = parseInt(this.value);
+                currentYear = this.value === '1' ? 2025 : (this.value === '2' ? 2025 : (this.value === '3' ? 2024 : 2024));
+                loadPEADData();
+            });
+
+            // Date selection
+            document.getElementById('dateSelect').addEventListener('change', function() {
+                filterByDate(this.value);
+            });
+
+            // SUE Score sorting
+            document.querySelector('.sortable').addEventListener('click', function() {
+                sortTable('sue_score');
+            });
+        }
+
+        async function loadPEADData() {
+            try {
+                showLoading();
+                
+                const endpoint = `/api/pead-strategy/quarter/${currentQuarter}/year/${currentYear}`;
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentData = data.data;
+                    console.log(`Loaded ${currentData.length} stocks for Q${currentQuarter} ${currentYear}`);
+                    populateDateFilter(data.data);
+                    filterByDate('latest');
+                    updateMetrics(data.metrics);
+                    showSuccess('PEAD analysis data loaded successfully!');
+                } else {
+                    showError(data.message || 'Failed to load PEAD data');
+                }
+            } catch (error) {
+                console.error('Error loading PEAD data:', error);
+                showError('Network error: ' + error.message);
+            }
+        }
+
+        function populateDateFilter(data) {
+            const dateSelect = document.getElementById('dateSelect');
+            
+            // Get unique dates (by date only, not time) and sort them
+            const dates = [...new Set(data.map(row => row.announcement_date.split('T')[0]))].sort();
+            const latestDate = dates[dates.length - 1];
+            const latestDateFormatted = new Date(latestDate).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+            
+            dateSelect.innerHTML = `<option value="latest">${latestDateFormatted}</option>`;
+            
+            dates.forEach(date => {
+                const option = document.createElement('option');
+                option.value = date;
+                option.textContent = new Date(date).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                dateSelect.appendChild(option);
+            });
+        }
+
+        function filterByDate(selectedDate) {
+            let filteredData = currentData;
+            
+            if (selectedDate !== 'latest') {
+                // Filter by exact date match
+                filteredData = currentData.filter(row => row.announcement_date.startsWith(selectedDate));
+            } else {
+                // Show only the latest date (by date, not time)
+                const dates = [...new Set(currentData.map(row => row.announcement_date.split('T')[0]))].sort();
+                const latestDate = dates[dates.length - 1];
+                filteredData = currentData.filter(row => row.announcement_date.startsWith(latestDate));
+            }
+            
+            console.log(`Filtering by date: ${selectedDate}, found ${filteredData.length} stocks`);
+            populateTable(filteredData);
+        }
+
+        function populateTable(data) {
+            const tbody = document.getElementById('peadTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                
+                // Format announcement date with time
+                const announcementDate = new Date(row.announcement_date).toLocaleString('en-IN', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                // Format SUE score with color coding
+                const sueClass = row.sue_score > 1 ? 'sue-positive' : (row.sue_score < -1 ? 'sue-negative' : '');
+                const sueText = row.sue_score ? row.sue_score.toFixed(2) : 'N/A';
+                
+                // Use actual prices from API
+                const announcementPrice = row.price_on_announcement ? row.price_on_announcement.toFixed(2) : 'N/A';
+                const price1Week = row.price_after_1week ? row.price_after_1week.toFixed(2) : 'N/A';
+                const price2Week = row.price_after_2weeks ? row.price_after_2weeks.toFixed(2) : 'N/A';
+                
+                // Format price changes with color coding
+                const price1WeekClass = row.price_change_1week > 0 ? 'price-positive' : (row.price_change_1week < 0 ? 'price-negative' : '');
+                const price2WeekClass = row.price_change_2week > 0 ? 'price-positive' : (row.price_change_2week < 0 ? 'price-negative' : '');
+                
+                // Determine signal
+                let signal = 'HOLD';
+                let signalClass = 'text-muted';
+                if (row.sue_score > 1) {
+                    signal = 'BUY';
+                    signalClass = 'text-success fw-bold';
+                } else if (row.sue_score < -1) {
+                    signal = 'SELL';
+                    signalClass = 'text-danger fw-bold';
+                }
+                
+                tr.innerHTML = `
+                    <td>${announcementDate}</td>
+                    <td><a href="/stock/${row.nse_symbol.replace(/&/g, '%26')}" target="_blank" class="text-decoration-none fw-bold text-primary" title="View ${row.stock_name} details">${row.stock_name}</a></td>
+                    <td><code>${row.nse_symbol}</code></td>
+                    <td>${row.reported_eps ? row.reported_eps.toFixed(2) : 'N/A'}</td>
+                    <td>${row.expected_eps ? row.expected_eps.toFixed(2) : 'N/A'}</td>
+                    <td>${row.unexpected_eps ? row.unexpected_eps.toFixed(2) : 'N/A'}</td>
+                    <td class="${sueClass}" data-value="${row.sue_score || 0}">${sueText}</td>
+                    <td>${announcementPrice === 'N/A' ? 'N/A' : '₹' + announcementPrice}</td>
+                    <td>${price1Week === 'N/A' ? 'N/A' : '₹' + price1Week}</td>
+                    <td>${price2Week === 'N/A' ? 'N/A' : '₹' + price2Week}</td>
+                    <td class="${price1WeekClass}">${row.price_change_1week ? row.price_change_1week.toFixed(2) + '%' : 'N/A'}</td>
+                    <td class="${price2WeekClass}">${row.price_change_2week ? row.price_change_2week.toFixed(2) + '%' : 'N/A'}</td>
+                    <td class="${signalClass}">${signal}</td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        function sortTable(column) {
+            const tbody = document.getElementById('peadTableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            // Toggle sort direction
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'desc';
+            }
+            
+            // Update sort icon
+            document.querySelectorAll('.sortable i').forEach(icon => {
+                icon.className = 'fas fa-sort';
+            });
+            document.querySelector(`[data-column="${column}"] i`).className = 
+                sortDirection === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            
+            // Sort rows
+            rows.sort((a, b) => {
+                const aValue = parseFloat(a.querySelector(`[data-value]`).getAttribute('data-value')) || 0;
+                const bValue = parseFloat(b.querySelector(`[data-value]`).getAttribute('data-value')) || 0;
+                
+                if (sortDirection === 'asc') {
+                    return aValue - bValue;
+                } else {
+                    return bValue - aValue;
+                }
+            });
+            
+            // Re-append sorted rows
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function updateMetrics(metrics) {
+            document.getElementById('totalStocks').textContent = metrics.total_stocks || 0;
+            document.getElementById('announcedStocks').textContent = metrics.announced_stocks || 0;
+            document.getElementById('positiveSUE').textContent = metrics.positive_sue || 0;
+            document.getElementById('negativeSUE').textContent = metrics.negative_sue || 0;
+        }
+
+        function showLoading() {
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('successState').style.display = 'none';
+            document.getElementById('tableContainer').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('successState').style.display = 'none';
+            document.getElementById('tableContainer').style.display = 'none';
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function showSuccess(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('successState').style.display = 'block';
+            document.getElementById('tableContainer').style.display = 'block';
+            document.getElementById('successMessage').textContent = message;
+        }
+    </script>
 </body>
 </html>
-

@@ -105,6 +105,7 @@ class QuarterlyResultBase(BaseModel):
     operating_margin: Optional[float] = None
     net_margin: Optional[float] = None
     eps: Optional[float] = None
+    expected_eps: Optional[float] = None
     is_consolidated: bool = False
 
 

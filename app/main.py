@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.api.stocks import router as stocks_router
 from app.api.charts import router as charts_router
 from app.api.sync import router as sync_router
+from app.api.pead_strategy import router as pead_strategy_router
 
 app = FastAPI(title="Indian Stock AI Chatbot", version="1.0.0")
 
@@ -21,6 +22,7 @@ templates = Jinja2Templates(directory="app/templates")
 app.include_router(stocks_router, prefix="/api")
 app.include_router(charts_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
+app.include_router(pead_strategy_router, prefix="/api/pead-strategy")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):

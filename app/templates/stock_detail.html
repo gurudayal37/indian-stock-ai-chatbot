@@ -282,11 +282,11 @@
                     </div>
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Price Chart (1 Year)</h5>
+                            <h5 class="mb-0">Price Chart (3 Months)</h5>
                             <div>
                                 <button class="btn btn-sm btn-outline-primary" onclick="loadChart(365)">1Y</button>
                                 <button class="btn btn-sm btn-outline-primary" onclick="loadChart(180)">6M</button>
-                                <button class="btn btn-sm btn-outline-primary" onclick="loadChart(90)">3M</button>
+                                <button class="btn btn-sm btn-primary" onclick="loadChart(90)">3M</button>
                             </div>
                         </div>
                         <div class="card-body">
@@ -352,7 +352,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const symbol = '{{ symbol }}';
+        const symbol = '{{ symbol|safe }}';
         let priceChart = null;
 
         // Load stock data on page load
@@ -368,8 +368,8 @@
                 populateStockInfo(stock);
                 showStockContent();
                 
-                // Load chart automatically
-                loadChart(365);
+                // Load chart automatically (3 months by default)
+                loadChart(90);
                 
                 // Load quarterly results automatically
                 loadQuarterlyResults();
@@ -413,16 +413,69 @@
             document.getElementById('stockContent').style.display = 'block';
         }
 
+        function updateChartButtons(activeDays) {
+            // Reset all buttons to outline style
+            document.querySelectorAll('.card-header button').forEach(btn => {
+                btn.className = 'btn btn-sm btn-outline-primary';
+            });
+            
+            // Set active button based on days
+            let activeButton;
+            if (activeDays === 365) activeButton = document.querySelector('button[onclick="loadChart(365)"]');
+            else if (activeDays === 180) activeButton = document.querySelector('button[onclick="loadChart(180)"]');
+            else if (activeDays === 90) activeButton = document.querySelector('button[onclick="loadChart(90)"]');
+            
+            if (activeButton) {
+                activeButton.className = 'btn btn-sm btn-primary';
+            }
+        }
+
+        function updateChartHeader(activeDays) {
+            const header = document.querySelector('.card-header h5');
+            if (header) {
+                const period = activeDays === 365 ? '1 Year' : activeDays === 180 ? '6 Months' : '3 Months';
+                header.textContent = `Price Chart (${period})`;
+            }
+        }
+
         async function loadChart(days) {
             try {
+                console.log(`Loading chart for ${symbol} with ${days} days`);
+                
+                // Update button states and header
+                updateChartButtons(days);
+                updateChartHeader(days);
+                
                 const response = await fetch(`/api/stocks/${symbol}/ohlcv?days=${days}`);
                 const chartData = await response.json();
+                console.log('Chart data received:', chartData);
+                
+                // Load quarterly results for announcement date markers
+                const quarterlyResponse = await fetch(`/api/stocks/${symbol}/quarterly-results`);
+                const quarterlyData = await quarterlyResponse.json();
+                console.log('Quarterly data received:', quarterlyData);
                 
                 if (priceChart) {
                     priceChart.destroy();
                 }
                 
                 const ctx = document.getElementById('priceChart').getContext('2d');
+                
+                // Create announcement date markers
+                const announcementDates = quarterlyData
+                    .filter(q => q.announcement_date)
+                    .map(q => {
+                        const annDate = new Date(q.announcement_date);
+                        const chartDate = chartData.data.find(d => d.date === annDate.toISOString().split('T')[0]);
+                        return chartDate ? {
+                            x: chartDate.date,
+                            y: chartDate.close,
+                            quarter: `Q${q.quarter_number} ${q.year}`,
+                            announcement_date: q.announcement_date
+                        } : null;
+                    })
+                    .filter(marker => marker !== null);
+                
                 priceChart = new Chart(ctx, {
                     type: 'line',
                     data: {
@@ -435,6 +488,15 @@
                             borderWidth: 2,
                             fill: true,
                             tension: 0.1
+                        }, {
+                            label: 'Quarterly Results',
+                            data: announcementDates,
+                            type: 'scatter',
+                            backgroundColor: '#ff6b6b',
+                            borderColor: '#ff6b6b',
+                            pointRadius: 8,
+                            pointHoverRadius: 10,
+                            showLine: false
                         }]
                     },
                     options: {
@@ -443,7 +505,41 @@
                         plugins: {
                             title: {
                                 display: true,
-                                text: `${chartData.stock_name} - Price Chart`
+                                text: `${chartData.stock_name} - Price Chart (${days === 365 ? '1 Year' : days === 180 ? '6 Months' : '3 Months'})`
+                            },
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    usePointStyle: true,
+                                    generateLabels: function(chart) {
+                                        const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                        const labels = original.call(this, chart);
+                                        
+                                        // Customize the quarterly results label
+                                        labels.forEach(label => {
+                                            if (label.text === 'Quarterly Results') {
+                                                label.text = '📊 Quarterly Results Announced';
+                                            }
+                                        });
+                                        
+                                        return labels;
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    afterLabel: function(context) {
+                                        if (context.datasetIndex === 1) { // Quarterly results dataset
+                                            const dataPoint = context.raw;
+                                            return [
+                                                `Quarter: ${dataPoint.quarter}`,
+                                                `Announced: ${new Date(dataPoint.announcement_date).toLocaleDateString()}`
+                                            ];
+                                        }
+                                        return '';
+                                    }
+                                }
                             }
                         },
                         scales: {
@@ -459,8 +555,11 @@
                     }
                 });
                 
+                console.log('Chart created successfully');
+                
             } catch (error) {
                 console.error('Error loading chart data:', error);
+                console.error('Error details:', error.message);
             }
         }
 
