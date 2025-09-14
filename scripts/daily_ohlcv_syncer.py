@@ -24,7 +24,7 @@ Usage:
 import argparse
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Optional, Dict, Any, Tuple
 import yfinance as yf
 import pandas as pd
@@ -90,7 +90,7 @@ class DailyOHLCVSyncer:
             
             if latest_price:
                 return {
-                    'date': latest_price.date,
+                    'date': latest_price.date.date(),  # Convert datetime to date
                     'open': latest_price.open_price,
                     'high': latest_price.high_price,
                     'low': latest_price.low_price,
@@ -288,9 +288,31 @@ class DailyOHLCVSyncer:
             logger.error(f"❌ Error updating sync tracker: {e}")
             self.db.rollback()
     
+    def get_yahoo_latest_date(self, stock: Stock) -> Optional[date]:
+        """Get the latest available date from Yahoo Finance for a stock"""
+        try:
+            symbol = f"{stock.nse_symbol}.NS"
+            ticker = yf.Ticker(symbol)
+            
+            # Fetch just the last few days to get the latest date
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=7)
+            
+            data = ticker.history(start=start_date, end=end_date)
+            
+            if data.empty:
+                return None
+                
+            # Return the latest date as date object
+            return data.index[-1].to_pydatetime().date()
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting Yahoo latest date for {stock.nse_symbol}: {e}")
+            return None
+
     def sync_stock_ohlcv(self, stock: Stock, validate_only: bool = False) -> Tuple[bool, str]:
         """
-        Sync OHLCV data for a single stock
+        Sync OHLCV data for a single stock with improved incremental logic
         
         Args:
             stock: Stock object to sync
@@ -307,8 +329,8 @@ class DailyOHLCVSyncer:
             
             if not latest_db_data:
                 logger.info(f"📊 No existing data for {stock.nse_symbol}, fetching complete data")
-                # Fetch complete data (5 years)
-                start_date = datetime.now() - timedelta(days=1825)  # 5 years
+                # Fetch complete data (2 years for better performance)
+                start_date = datetime.now() - timedelta(days=730)  # 2 years
                 end_date = datetime.now()
             else:
                 # Check if we need to validate
@@ -316,14 +338,48 @@ class DailyOHLCVSyncer:
                     logger.info(f"🔍 Validation only mode for {stock.nse_symbol}")
                     return True, "Validation completed"
                 
-                # Fetch data from last day to today
-                start_date = latest_db_data['date'] + timedelta(days=1)
-                end_date = datetime.now()
+                # Get latest date from Yahoo Finance
+                yahoo_latest_date = self.get_yahoo_latest_date(stock)
                 
-                # If start_date is today or future, no new data needed
-                if start_date >= end_date:
-                    logger.info(f"✅ {stock.nse_symbol} data is up to date")
+                if not yahoo_latest_date:
+                    logger.warning(f"⚠️ Could not get latest date from Yahoo for {stock.nse_symbol}")
+                    return False, "Could not get latest date from Yahoo"
+                
+                # Compare dates - both should now be date objects
+                db_latest_date = latest_db_data['date']
+                yahoo_latest_date_only = yahoo_latest_date
+                
+                logger.info(f"📅 DB latest: {db_latest_date}, Yahoo latest: {yahoo_latest_date_only}")
+                
+                # If DB is up to date, no sync needed
+                if db_latest_date >= yahoo_latest_date_only:
+                    logger.info(f"✅ {stock.nse_symbol} data is up to date (DB: {db_latest_date}, Yahoo: {yahoo_latest_date_only})")
                     return True, "Data is up to date"
+                
+                # If dates don't match, we need to check if it's a data integrity issue
+                # Calculate the difference in days
+                days_diff = (yahoo_latest_date_only - db_latest_date).days
+                
+                if days_diff > 7:
+                    # If DB is more than 7 days behind, there might be a data integrity issue
+                    logger.warning(f"⚠️ DB data is significantly behind Yahoo for {stock.nse_symbol}")
+                    logger.info(f"🔄 Fetching complete data to ensure integrity")
+                    
+                    # Delete all existing data and fetch complete data
+                    if not self.delete_all_ohlcv_data(stock.id):
+                        return False, "Failed to delete existing data"
+                    
+                    start_date = datetime.now() - timedelta(days=730)  # 2 years
+                    end_date = datetime.now()
+                else:
+                    # Normal incremental sync - fetch from next day after DB latest
+                    start_date = datetime.combine(db_latest_date + timedelta(days=1), datetime.min.time())
+                    end_date = datetime.now()
+                    
+                    # If start_date is today or future, no new data needed
+                    if start_date >= end_date:
+                        logger.info(f"✅ {stock.nse_symbol} data is up to date")
+                        return True, "Data is up to date"
             
             # Fetch data from Yahoo Finance
             yahoo_data = self.fetch_yahoo_data(stock, start_date, end_date)
@@ -331,28 +387,6 @@ class DailyOHLCVSyncer:
             if yahoo_data is None or yahoo_data.empty:
                 logger.warning(f"⚠️ No new data available for {stock.nse_symbol}")
                 return True, "No new data available"
-            
-            # If we have existing data, validate the last day
-            if latest_db_data and not validate_only:
-                # Get the last day from Yahoo data for validation
-                last_yahoo_date = yahoo_data.index[-1]
-                last_yahoo_data = yahoo_data.loc[last_yahoo_date]
-                
-                # Validate data
-                if not self.validate_ohlcv_data(latest_db_data, last_yahoo_data):
-                    logger.warning(f"⚠️ Data validation failed for {stock.nse_symbol}, refreshing complete data")
-                    
-                    # Delete all existing data
-                    if not self.delete_all_ohlcv_data(stock.id):
-                        return False, "Failed to delete existing data"
-                    
-                    # Fetch complete data (5 years)
-                    start_date = datetime.now() - timedelta(days=1825)  # 5 years
-                    end_date = datetime.now()
-                    yahoo_data = self.fetch_yahoo_data(stock, start_date, end_date)
-                    
-                    if yahoo_data is None or yahoo_data.empty:
-                        return False, "Failed to fetch complete data"
             
             # Save new data
             saved_count = self.save_ohlcv_data(stock.id, yahoo_data)
