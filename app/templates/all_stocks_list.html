@@ -145,14 +145,15 @@
                             <th>Name</th>
                             <th>Change %</th>
                             <th>Volume</th>
-                            <th>Market Cap (Cr.) <i class="fas fa-sort-down"></i></th>
                             <th>P/E Ratio</th>
-                            <th>Industry P/E</th>
-                            <th>52W High</th>
-                            <th>52W Low</th>
+                            <th>Market Cap (Cr.)</th>
+                            <th>Sector</th>
+                            <th>1W Returns</th>
                             <th>1M Returns</th>
                             <th>3M Returns</th>
+                            <th>6M Returns</th>
                             <th>1Yr Returns</th>
+                            <th>All Time</th>
                         </tr>
                     </thead>
                     <tbody id="stocksTableBody">
@@ -187,7 +188,7 @@
         async function loadStocks() {
             showLoading(true);
             try {
-                const response = await fetch('/api/stocks?limit=1000');
+                const response = await fetch('/api/stocks/with-returns?limit=1000');
                 allStocks = await response.json();
                 filteredStocks = [...allStocks];
                 renderStocks();
@@ -308,19 +309,28 @@
                     </span>
                 </td>
                 <td>${stock.volume ? stock.volume.toLocaleString() : 'N/A'}</td>
-                <td>₹ ${marketCap}</td>
                 <td>${stock.pe_ratio ? stock.pe_ratio.toFixed(2) : 'N/A'}</td>
-                <td>${stock.industry_pe ? stock.industry_pe.toFixed(2) : 'N/A'}</td>
-                <td>₹ ${stock.high_52_week ? stock.high_52_week.toFixed(2) : 'N/A'}</td>
-                <td>₹ ${stock.low_52_week ? stock.low_52_week.toFixed(2) : 'N/A'}</td>
+                <td>₹ ${marketCap}</td>
+                <td>
+                    <span class="badge bg-secondary sector-badge">${stock.sector || 'N/A'}</span>
+                </td>
+                <td class="${(stock.returns_1w || 0) >= 0 ? 'price-change-positive' : 'price-change-negative'}">
+                    ${stock.returns_1w ? (stock.returns_1w >= 0 ? '+' : '') + stock.returns_1w.toFixed(2) + '%' : 'N/A'}
+                </td>
                 <td class="${(stock.returns_1m || 0) >= 0 ? 'price-change-positive' : 'price-change-negative'}">
                     ${stock.returns_1m ? (stock.returns_1m >= 0 ? '+' : '') + stock.returns_1m.toFixed(2) + '%' : 'N/A'}
                 </td>
                 <td class="${(stock.returns_3m || 0) >= 0 ? 'price-change-positive' : 'price-change-negative'}">
                     ${stock.returns_3m ? (stock.returns_3m >= 0 ? '+' : '') + stock.returns_3m.toFixed(2) + '%' : 'N/A'}
                 </td>
+                <td class="${(stock.returns_6m || 0) >= 0 ? 'price-change-positive' : 'price-change-negative'}">
+                    ${stock.returns_6m ? (stock.returns_6m >= 0 ? '+' : '') + stock.returns_6m.toFixed(2) + '%' : 'N/A'}
+                </td>
                 <td class="${(stock.returns_1y || 0) >= 0 ? 'price-change-positive' : 'price-change-negative'}">
                     ${stock.returns_1y ? (stock.returns_1y >= 0 ? '+' : '') + stock.returns_1y.toFixed(2) + '%' : 'N/A'}
+                </td>
+                <td class="${(stock.returns_all_time || 0) >= 0 ? 'price-change-positive' : 'price-change-negative'}">
+                    ${stock.returns_all_time ? (stock.returns_all_time >= 0 ? '+' : '') + stock.returns_all_time.toFixed(2) + '%' : 'N/A'}
                 </td>
             `;
 

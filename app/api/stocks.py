@@ -32,6 +32,116 @@ async def list_stocks(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/stocks/with-returns")
+async def get_stocks_with_returns(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    sector: Optional[str] = Query(None),
+    industry: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get stocks with calculated returns for different time periods"""
+    try:
+        from app.models.stock import DailyPrice
+        from datetime import datetime, timedelta
+        from sqlalchemy import and_, func, desc
+        
+        # Build base query
+        query = db.query(Stock).filter(Stock.is_active == True)
+        
+        if sector:
+            query = query.filter(Stock.sector == sector)
+        if industry:
+            query = query.filter(Stock.industry == industry)
+        
+        stocks = query.offset(skip).limit(limit).all()
+        
+        # Calculate returns for each stock
+        stocks_with_returns = []
+        for stock in stocks:
+            stock_data = {
+                'id': stock.id,
+                'name': stock.name,
+                'nse_symbol': stock.nse_symbol,
+                'bse_symbol': stock.bse_symbol,
+                'sector': stock.sector,
+                'industry': stock.industry,
+                'market_cap': stock.market_cap,
+                'current_price': stock.current_price,
+                'pe_ratio': stock.pe_ratio,
+                'pb_ratio': stock.pb_ratio,
+                'high_52_week': stock.high_52_week,
+                'low_52_week': stock.low_52_week,
+                'industry_pe': stock.pe_ratio,  # Using PE as industry PE for now
+                'returns_1w': None,
+                'returns_1m': None,
+                'returns_3m': None,
+                'returns_6m': None,
+                'returns_1y': None,
+                'returns_all_time': None
+            }
+            
+            # Get current price (latest close price)
+            current_price_data = db.query(DailyPrice).filter(
+                DailyPrice.stock_id == stock.id
+            ).order_by(desc(DailyPrice.date)).first()
+            
+            if not current_price_data:
+                stocks_with_returns.append(stock_data)
+                continue
+                
+            current_price = current_price_data.close_price
+            current_date = current_price_data.date
+            
+            # Calculate returns for different periods
+            periods = [
+                ('1w', 7),
+                ('1m', 30),
+                ('3m', 90),
+                ('6m', 180),
+                ('1y', 365)
+            ]
+            
+            for period_name, days in periods:
+                # Get price from the specified days ago
+                target_date = current_date - timedelta(days=days)
+                
+                # Find the closest trading day (within 5 days of target)
+                # Use a simpler approach - get the closest date by absolute difference in seconds
+                price_data = db.query(DailyPrice).filter(
+                    and_(
+                        DailyPrice.stock_id == stock.id,
+                        DailyPrice.date >= target_date - timedelta(days=5),
+                        DailyPrice.date <= target_date + timedelta(days=5)
+                    )
+                ).order_by(
+                    func.abs(func.extract('epoch', DailyPrice.date - target_date))
+                ).first()
+                
+                if price_data and current_price:
+                    old_price = price_data.close_price
+                    if old_price and old_price > 0:
+                        return_pct = ((current_price - old_price) / old_price) * 100
+                        stock_data[f'returns_{period_name}'] = round(return_pct, 2)
+            
+            # Calculate all-time return (from earliest available data)
+            earliest_price_data = db.query(DailyPrice).filter(
+                DailyPrice.stock_id == stock.id
+            ).order_by(DailyPrice.date.asc()).first()
+            
+            if earliest_price_data and current_price:
+                earliest_price = earliest_price_data.close_price
+                if earliest_price and earliest_price > 0:
+                    return_pct = ((current_price - earliest_price) / earliest_price) * 100
+                    stock_data['returns_all_time'] = round(return_pct, 2)
+            
+            stocks_with_returns.append(stock_data)
+        
+        return stocks_with_returns
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/stocks/featured")
 async def get_featured_stocks(db: Session = Depends(get_db)):
     """Get the 3 featured stocks (RELIANCE, TCS, INFY) with comprehensive data"""
