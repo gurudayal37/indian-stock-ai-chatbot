@@ -71,13 +71,16 @@ class PEADStrategyAnalyzer:
             from app.models.stock import DailyPrice
             from datetime import date, datetime
             
-            # Create date ranges for all stocks - use current date as base since announcement dates are in future
-            current_date = date(2025, 8, 20)  # Use a date we know has price data
-            
+            # Use actual announcement dates, but fallback to a known date with price data if needed
             date_ranges = []
             for i, stock_id in enumerate(stock_ids):
-                # Use current_date as base instead of future announcement dates
-                ann_date = current_date
+                # Use the actual announcement date if available, otherwise use a fallback date
+                if i < len(announcement_dates) and announcement_dates[i]:
+                    ann_date = announcement_dates[i].date()
+                else:
+                    # Fallback to a date we know has price data
+                    ann_date = date(2025, 8, 20)
+                
                 date_ranges.append({
                     'stock_id': stock_id,
                     'announcement_date': ann_date,
@@ -85,9 +88,17 @@ class PEADStrategyAnalyzer:
                     'week2_date': ann_date + timedelta(days=14)
                 })
             
-            # Use a wide date range to ensure we get prices
-            min_date = date(2025, 1, 1)
-            max_date = date(2025, 12, 31)
+            # Calculate date range based on actual announcement dates
+            if date_ranges:
+                min_ann_date = min(dr['announcement_date'] for dr in date_ranges)
+                max_ann_date = max(dr['week2_date'] for dr in date_ranges)
+                # Add some buffer days
+                min_date = min_ann_date - timedelta(days=7)
+                max_date = max_ann_date + timedelta(days=7)
+            else:
+                # Fallback to a wide range
+                min_date = date(2025, 1, 1)
+                max_date = date(2025, 12, 31)
             
             logger.info(f"Looking for prices between {min_date} and {max_date}")
             logger.info(f"Sample stock IDs: {stock_ids[:5]}")
@@ -324,14 +335,14 @@ class PEADStrategyAnalyzer:
                     elif sue_score and sue_score < 0:
                         negative_sue += 1
 
-                    # Use the actual date we're using for price calculation
-                    price_calculation_date = datetime(2025, 8, 20)
+                    # Use the actual announcement date
+                    announcement_date = qr.announcement_date if qr.announcement_date else datetime(2025, 8, 20)
                     
                     pead_data.append({
                         'stock_id': stock.id,
                         'stock_name': stock.name,
                         'nse_symbol': stock.nse_symbol,
-                        'announcement_date': price_calculation_date.isoformat(),
+                        'announcement_date': announcement_date.isoformat(),
                         'reported_eps': qr.eps,
                         'expected_eps': qr.expected_eps,
                         'unexpected_eps': unexpected_eps,
@@ -421,6 +432,57 @@ async def get_q2_2025_pead_analysis(db: Session = Depends(get_db)):
                 'metrics': {}
             }
         )
+
+@router.get("/available-dates")
+async def get_available_dates(db: Session = Depends(get_db)):
+    """
+    Get available quarters and years for PEAD analysis
+    """
+    try:
+        from app.models.stock import QuarterlyResult, Stock
+        from sqlalchemy import and_, func
+        
+        # Get available quarters and years from quarterly results
+        available_data = db.query(
+            QuarterlyResult.quarter_number,
+            QuarterlyResult.year,
+            func.min(QuarterlyResult.announcement_date).label('min_date'),
+            func.max(QuarterlyResult.announcement_date).label('max_date')
+        ).filter(
+            and_(
+                QuarterlyResult.is_consolidated == True,
+                QuarterlyResult.announcement_date.isnot(None),
+                QuarterlyResult.expected_eps.isnot(None),
+                QuarterlyResult.eps.isnot(None)
+            )
+        ).group_by(
+            QuarterlyResult.quarter_number,
+            QuarterlyResult.year
+        ).order_by(
+            QuarterlyResult.year.desc(),
+            QuarterlyResult.quarter_number.desc()
+        ).all()
+        
+        # Format the data
+        quarters = []
+        for data in available_data:
+            quarters.append({
+                'quarter': data.quarter_number,
+                'year': data.year,
+                'min_date': data.min_date.isoformat() if data.min_date else None,
+                'max_date': data.max_date.isoformat() if data.max_date else None,
+                'label': f"Q{data.quarter_number} {data.year}"
+            })
+        
+        return JSONResponse(content={
+            'success': True,
+            'quarters': quarters,
+            'message': f"Found {len(quarters)} available quarters"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting available dates: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting available dates: {str(e)}")
 
 @router.get("/quarter/{quarter}/year/{year}")
 async def get_quarterly_pead_analysis(quarter: int, year: int, db: Session = Depends(get_db)):
