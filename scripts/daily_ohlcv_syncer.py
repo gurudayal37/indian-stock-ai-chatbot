@@ -360,9 +360,9 @@ class DailyOHLCVSyncer:
                 # Calculate the difference in days
                 days_diff = (yahoo_latest_date_only - db_latest_date).days
                 
-                if days_diff > 7:
-                    # If DB is more than 7 days behind, there might be a data integrity issue
-                    logger.warning(f"⚠️ DB data is significantly behind Yahoo for {stock.nse_symbol}")
+                if days_diff > 14:
+                    # If DB is more than 14 days behind, there might be a data integrity issue
+                    logger.warning(f"⚠️ DB data is more than 14 days behind Yahoo for {stock.nse_symbol} (gap: {days_diff} days)")
                     logger.info(f"🔄 Fetching complete data to ensure integrity")
                     
                     # Delete all existing data and fetch complete data
