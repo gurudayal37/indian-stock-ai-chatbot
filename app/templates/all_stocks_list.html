@@ -37,6 +37,25 @@
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
         }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .sortable:hover {
+            background-color: #e9ecef;
+        }
+        .sortable i {
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .sortable:hover i {
+            opacity: 1;
+        }
+        .sortable.active i {
+            opacity: 1;
+            color: #007bff;
+        }
         .loading-spinner {
             display: none;
         }
@@ -115,6 +134,12 @@
                         <option value="pe_ratio">P/E Ratio</option>
                         <option value="pb_ratio">P/B Ratio</option>
                         <option value="change_percent">Change %</option>
+                        <option value="returns_1w">1W Returns</option>
+                        <option value="returns_1m">1M Returns</option>
+                        <option value="returns_3m">3M Returns</option>
+                        <option value="returns_6m">6M Returns</option>
+                        <option value="returns_1y">1Yr Returns</option>
+                        <option value="returns_all_time">All Time Returns</option>
                         <option value="name">Name</option>
                     </select>
                 </div>
@@ -142,18 +167,18 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Change %</th>
+                            <th class="sortable" data-sort="name">Name <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="change_percent">Change % <i class="fas fa-sort"></i></th>
                             <th>Volume</th>
-                            <th>P/E Ratio</th>
-                            <th>Market Cap (Cr.)</th>
+                            <th class="sortable" data-sort="pe_ratio">P/E Ratio <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="market_cap">Market Cap (Cr.) <i class="fas fa-sort"></i></th>
                             <th>Sector</th>
-                            <th>1W Returns</th>
-                            <th>1M Returns</th>
-                            <th>3M Returns</th>
-                            <th>6M Returns</th>
-                            <th>1Yr Returns</th>
-                            <th>All Time</th>
+                            <th class="sortable" data-sort="returns_1w">1W Returns <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="returns_1m">1M Returns <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="returns_3m">3M Returns <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="returns_6m">6M Returns <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="returns_1y">1Yr Returns <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="returns_all_time">All Time <i class="fas fa-sort"></i></th>
                         </tr>
                     </thead>
                     <tbody id="stocksTableBody">
@@ -193,6 +218,7 @@
                 filteredStocks = [...allStocks];
                 renderStocks();
                 updatePagination();
+                updateActiveHeader();
             } catch (error) {
                 console.error('Error loading stocks:', error);
                 alert('Error loading stocks data. Please try again.');
@@ -224,6 +250,29 @@
             document.getElementById('industryFilter').addEventListener('change', filterAndSortStocks);
             document.getElementById('sortBy').addEventListener('change', filterAndSortStocks);
             document.getElementById('sortOrder').addEventListener('change', filterAndSortStocks);
+            
+            // Add click listeners to sortable headers
+            document.querySelectorAll('.sortable').forEach(header => {
+                header.addEventListener('click', function() {
+                    const sortField = this.getAttribute('data-sort');
+                    const currentSort = document.getElementById('sortBy').value;
+                    const currentOrder = document.getElementById('sortOrder').value;
+                    
+                    // If clicking the same field, toggle order; otherwise set to desc
+                    if (currentSort === sortField) {
+                        document.getElementById('sortOrder').value = currentOrder === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        document.getElementById('sortBy').value = sortField;
+                        document.getElementById('sortOrder').value = 'desc';
+                    }
+                    
+                    // Update active header styling
+                    updateActiveHeader();
+                    
+                    // Apply sorting
+                    filterAndSortStocks();
+                });
+            });
         }
 
         function filterAndSortStocks() {
@@ -248,8 +297,8 @@
 
             // Sort stocks
             filteredStocks.sort((a, b) => {
-                let aValue = a[sortBy] || 0;
-                let bValue = b[sortBy] || 0;
+                let aValue = a[sortBy];
+                let bValue = b[sortBy];
 
                 if (sortBy === 'name') {
                     aValue = a.name || '';
@@ -257,8 +306,14 @@
                     return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
                 }
 
-                if (typeof aValue === 'string') aValue = parseFloat(aValue) || 0;
-                if (typeof bValue === 'string') bValue = parseFloat(bValue) || 0;
+                // Handle return fields - treat null/undefined as 0 for sorting
+                if (sortBy.startsWith('returns_')) {
+                    aValue = aValue !== null && aValue !== undefined ? parseFloat(aValue) : 0;
+                    bValue = bValue !== null && bValue !== undefined ? parseFloat(bValue) : 0;
+                } else {
+                    if (typeof aValue === 'string') aValue = parseFloat(aValue) || 0;
+                    if (typeof bValue === 'string') bValue = parseFloat(bValue) || 0;
+                }
 
                 return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
             });
@@ -266,6 +321,7 @@
             currentPage = 1;
             renderStocks();
             updatePagination();
+            updateActiveHeader();
         }
 
         function renderStocks() {
@@ -384,6 +440,20 @@
                 renderStocks();
                 updatePagination();
                 window.scrollTo(0, 0);
+            }
+        }
+
+        function updateActiveHeader() {
+            // Remove active class from all headers
+            document.querySelectorAll('.sortable').forEach(header => {
+                header.classList.remove('active');
+            });
+            
+            // Add active class to current sort header
+            const currentSort = document.getElementById('sortBy').value;
+            const activeHeader = document.querySelector(`[data-sort="${currentSort}"]`);
+            if (activeHeader) {
+                activeHeader.classList.add('active');
             }
         }
 
